@@ -102,9 +102,6 @@ cart_data = {
 
 
 def services(request):
-    cart_components = cart_data.get(1, {}).get("components", [])
-    cart_count = len(cart_components)
-    
     # Обработка поиска
     search_query = request.GET.get('search', '').strip()
     filtered_services = services_data
@@ -118,25 +115,19 @@ def services(request):
     
     return render(request, 'main/services.html', {
         "services": filtered_services,
-        "cart_count": cart_count,
+        "cart_data": cart_data,
         "search_query": search_query,
     })
 
 def cart(request):
-    # Сопоставляем items корзины с данными услуг
-    components = cart_data.get(1, {}).get("components", [])
-    id_to_count = {c["componentId"]: c["replicationCount"] for c in components}
-    cart_items = []
-    for s in services_data:
-        if s["id"] in id_to_count:
-            item = {**s, "replicationCount": id_to_count[s["id"]]}
-            cart_items.append(item)
-    return render(request, 'main/cart.html', {"cart_items": cart_items})
+    return render(request, 'main/cart.html', {
+        "cart_data": cart_data,
+        "services_data": services_data,
+    })
 
 def service_detail(request, service_id):
     service = next((s for s in services_data if s["id"] == service_id), None)
     return render(request, 'main/service_detail.html', {"service": service})
-
 
 def minio_proxy(request, bucket_name, object_name):
     """

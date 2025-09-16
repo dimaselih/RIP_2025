@@ -39,31 +39,35 @@
         </div>
 
         <div class="cart-list">
-            {% for item in cart_items %}
-            <div class="cart-card">
-                <div class="cart-card-image">
-                    <img src="/{{ item.image }}" alt="{{ item.title }}">
-                </div>
-                <div class="cart-card-content">
-                    <div class="cart-card-text">
-                        <h3 class="cart-card-title">{{ item.title }}</h3>
-                        <p class="cart-card-desc">{{ item.shortDescription }}</p>
-                        {% if item.price %}
-                            <p class="cart-card-price">{{ item.price }}</p>
-                        {% endif %}
+            {% for component in cart_data.1.components %}
+                {% for service in services_data %}
+                    {% if service.id == component.componentId %}
+                    <div class="cart-card">
+                        <div class="cart-card-image">
+                            <img src="/{{ service.image }}" alt="{{ service.title }}">
+                        </div>
+                        <div class="cart-card-content">
+                            <div class="cart-card-text">
+                                <h3 class="cart-card-title">{{ service.title }}</h3>
+                                <p class="cart-card-desc">{{ service.shortDescription }}</p>
+                                {% if service.price %}
+                                    <p class="cart-card-price">{{ service.price }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="cart-card-actions">
+                                <a href="{% url 'service_detail' service.id %}" class="details-btn">ПОДРОБНЕЕ</a>
+                            </div>
+                        </div>
+                        <div class="cart-card-right">
+                            <div class="quantity">
+                                <button class="qty-btn" aria-label="decrease">-</button>
+                                <span class="qty-value">{{ component.replicationCount }}</span>
+                                <button class="qty-btn" aria-label="increase">+</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="cart-card-actions">
-                        <a href="{% url 'service_detail' item.id %}" class="details-btn">ПОДРОБНЕЕ</a>
-                    </div>
-                </div>
-                <div class="cart-card-right">
-                    <div class="quantity">
-                        <button class="qty-btn" aria-label="decrease">-</button>
-                        <span class="qty-value">{{ item.replicationCount }}</span>
-                        <button class="qty-btn" aria-label="increase">+</button>
-                    </div>
-                </div>
-            </div>
+                    {% endif %}
+                {% endfor %}
             {% empty %}
             <div class="no-items">Пока нет выбранных услуг</div>
             {% endfor %}

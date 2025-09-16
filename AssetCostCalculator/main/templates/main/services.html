@@ -22,7 +22,7 @@
         </div>
         <a href="{% url 'cart' %}" class="cart-container cart-link">
             <img src="/minio/technical/cart.png" alt="Cart" class="cart-img">
-            <span class="cart-count">{{ cart_count }}</span>
+            <span class="cart-count">{{ cart_data.1.components|length }}</span>
         </a>
     </div>
 
