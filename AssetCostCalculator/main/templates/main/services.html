@@ -1,0 +1,57 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Услуги TCO{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'main/css/services.css' %}">
+{% endblock %}
+
+{% block content %}
+    <!-- Search and Cart Section -->
+    <div class="search-cart-section">
+        <div class="search-container">
+            <form method="GET" class="search-form">
+                <div class="search-box">
+                    <input type="text" name="search" placeholder="Поиск услуг..." class="search-input" value="{{ search_query }}">
+                    {% if search_query %}
+                        <a href="{% url 'services' %}" class="clear-search" title="Очистить поиск">×</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+        <a href="{% url 'cart' %}" class="cart-container cart-link">
+            <img src="/minio/technical/cart.png" alt="Cart" class="cart-img">
+            <span class="cart-count">{{ cart_count }}</span>
+        </a>
+    </div>
+
+    <div class="services-grid">
+        {% for s in services %}
+        <div class="service-card">
+            <div class="service-image">
+                <img src="/{{ s.image }}" alt="{{ s.title }}" class="card-image">
+            </div>
+            <div class="service-content">
+                <div class="service-info">
+                    <div class="service-text-container">
+                        <h3 class="service-title">{{ s.title }}</h3>
+                        <p class="service-description">{{ s.shortDescription }}</p>
+                    </div>
+                </div>
+                <div class="service-actions">
+                    <a href="{% url 'service_detail' s.id %}" class="details-btn">ПОДРОБНЕЕ</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="no-services">
+            {% if search_query %}
+                По запросу "{{ search_query }}" ничего не найдено
+            {% else %}
+                Нет доступных услуг
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+{% endblock %}

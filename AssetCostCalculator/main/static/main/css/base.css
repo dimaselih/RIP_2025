@@ -1,0 +1,294 @@
+/* Import Source Sans 3 font */
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap');
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-display: swap;
+    background-color: #fff;
+    color: #000;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.container {
+    width: 100%;
+    background-color: #fff;
+    min-height: 100vh;
+}
+
+/* Header styles */
+.header {
+    background-color: #f5f5f5;
+    padding: 15px 30px;
+    width: 100%;
+}
+
+.header-content {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.logo {
+    width: 80px;
+    height: 50px;
+}
+
+.logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Main content */
+.main-content {
+    padding: 0 0;
+    width: 100%;
+    background-color: #fff;
+}
+
+/* Common button styles */
+.btn {
+    font-family: 'Source Sans 3', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    border: 1px solid #58ad6e;
+    border-radius: 30px;
+    padding: 15px 25px;
+    color: #58ad6e;
+    background: transparent;
+}
+
+.btn:hover {
+    background-color: #58ad6e;
+    color: white;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #58ad6e;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #4a9a5a;
+    color: white;
+}
+
+/* Common input styles */
+.input {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 16px;
+    color: #000;
+    border: 1px solid #58ad6e;
+    border-radius: 30px;
+    padding: 15px 25px;
+    background: transparent;
+    outline: none;
+    width: 100%;
+}
+
+.input::placeholder {
+    color: #999;
+}
+
+/* Common card styles */
+.card {
+    background: #fff;
+    border: 0.8px solid #58ad6e;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Common text styles */
+.text-primary {
+    color: #58ad6e;
+}
+
+.text-secondary {
+    color: #666;
+}
+
+.text-muted {
+    color: #999;
+}
+
+.title {
+    font-family: 'Source Sans 3', sans-serif;
+    font-weight: 600;
+    color: #000;
+}
+
+.title-large {
+    font-size: 28px;
+    line-height: 1.2;
+}
+
+.title-medium {
+    font-size: 20px;
+    line-height: 28px;
+}
+
+.title-small {
+    font-size: 16px;
+    line-height: 23px;
+}
+
+.description {
+    font-family: 'Source Sans 3', sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 23px;
+    color: #000;
+}
+
+/* Common spacing */
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 8px; }
+.mb-2 { margin-bottom: 16px; }
+.mb-3 { margin-bottom: 24px; }
+.mb-4 { margin-bottom: 32px; }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: 8px; }
+.mt-2 { margin-top: 16px; }
+.mt-3 { margin-top: 24px; }
+.mt-4 { margin-top: 32px; }
+
+.p-0 { padding: 0; }
+.p-1 { padding: 8px; }
+.p-2 { padding: 16px; }
+.p-3 { padding: 24px; }
+.p-4 { padding: 32px; }
+
+/* Common flex utilities */
+.flex {
+    display: flex;
+}
+
+.flex-column {
+    flex-direction: column;
+}
+
+.flex-row {
+    flex-direction: row;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.justify-start {
+    justify-content: flex-start;
+}
+
+.justify-end {
+    justify-content: flex-end;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.align-start {
+    align-items: flex-start;
+}
+
+.align-end {
+    align-items: flex-end;
+}
+
+.gap-1 { gap: 8px; }
+.gap-2 { gap: 16px; }
+.gap-3 { gap: 24px; }
+.gap-4 { gap: 32px; }
+
+/* Common width utilities */
+.w-100 { width: 100%; }
+.w-auto { width: auto; }
+
+/* Common text alignment */
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+/* Common display utilities */
+.d-none { display: none; }
+.d-block { display: block; }
+.d-inline { display: inline; }
+.d-inline-block { display: inline-block; }
+.d-flex { display: flex; }
+.d-grid { display: grid; }
+
+/* Common position utilities */
+.position-relative { position: relative; }
+.position-absolute { position: absolute; }
+.position-fixed { position: fixed; }
+
+/* Common overflow utilities */
+.overflow-hidden { overflow: hidden; }
+.overflow-visible { overflow: visible; }
+
+/* Common border utilities */
+.border { border: 1px solid #58ad6e; }
+.border-0 { border: none; }
+.border-radius { border-radius: 6px; }
+.border-radius-lg { border-radius: 30px; }
+
+/* Common background utilities */
+.bg-white { background-color: #fff; }
+.bg-light { background-color: #f5f5f5; }
+.bg-primary { background-color: #58ad6e; }
+
+/* Common shadow utilities */
+.shadow { box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25); }
+.shadow-none { box-shadow: none; }
+
+/* Common transition utilities */
+.transition { transition: all 0.3s ease; }
+.transition-fast { transition: all 0.2s ease; }
+
+/* Common z-index utilities */
+.z-1 { z-index: 1; }
+.z-2 { z-index: 2; }
+.z-10 { z-index: 10; }
+
+/* Common responsive utilities */
+@media (max-width: 1200px) {
+    .d-lg-none { display: none; }
+    .d-lg-block { display: block; }
+    .d-lg-flex { display: flex; }
+}
+
+@media (max-width: 900px) {
+    .d-md-none { display: none; }
+    .d-md-block { display: block; }
+    .d-md-flex { display: flex; }
+}
+
+@media (max-width: 600px) {
+    .d-sm-none { display: none; }
+    .d-sm-block { display: block; }
+    .d-sm-flex { display: flex; }
+}

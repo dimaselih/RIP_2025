@@ -1,0 +1,45 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:15
+    volumes:
+      - type: volume
+        source: postgresdb-data
+        target: /var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_DB: RIP
+      POSTGRES_PASSWORD: root
+  
+  minio:
+    container_name: minio
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ACCESS_KEY: myaccesskey  
+      MINIO_SECRET_KEY: mysecretkey123  
+      MINIO_CONSOLE_ADDRESS: ":9001"
+    volumes:
+      - minio-data:/data
+    command: server /data
+  
+  redis:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass password
+    volumes:
+      - redis-data:/data
+
+volumes:
+  postgresdb-data:
+    driver: local
+  minio-data:
+    driver: local
+  redis-data:
+    driver: local
