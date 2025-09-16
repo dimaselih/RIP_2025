@@ -21,7 +21,7 @@
             </form>
         </div>
         <a href="{% url 'cart' %}" class="cart-container cart-link">
-            <img src="/minio/technical/cart.png" alt="Cart" class="cart-img">
+            <img src="http://127.0.0.1:9000/technical/cart.png" alt="Cart" class="cart-img">
             <span class="cart-count">{{ cart_data.1.components|length }}</span>
         </a>
     </div>
@@ -30,7 +30,7 @@
         {% for s in services %}
         <div class="service-card">
             <div class="service-image">
-                <img src="/{{ s.image }}" alt="{{ s.title }}" class="card-image">
+                <img src="{{ s.image }}" alt="{{ s.title }}" class="card-image">
             </div>
             <div class="service-content">
                 <div class="service-info">

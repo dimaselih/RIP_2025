@@ -6,7 +6,7 @@ services_data = [
     {
         "id": 1,
         "title": "Закупка оборудования",
-        "image": "minio/cards/purchase.png",
+        "image": "http://127.0.0.1:9000/cards/purchase.png",
         "shortDescription": "Первоначальная стоимость приобретения актива, включая доставку, установку и настройку",
         "fullDescription": (
             "• Поставка оборудования в полной комплектации\n"
@@ -20,7 +20,7 @@ services_data = [
     {
         "id": 2,
         "title": "Эксплуатационные расходы",
-        "image": "minio/cards/operation.png",
+        "image": "http://127.0.0.1:9000/cards/operation.png",
         "shortDescription": "Ежегодные затраты на эксплуатацию актива: энергопотребление, расходные материалы, аренда помещений",
         "fullDescription": (
             "• Энергопотребление и коммунальные услуги\n"
@@ -34,7 +34,7 @@ services_data = [
     {
         "id": 3,
         "title": "Техническое обслуживание",
-        "image": "minio/cards/service.png",
+        "image": "http://127.0.0.1:9000/cards/service.png",
         "shortDescription": "Плановое и внеплановое техническое обслуживание, ремонты, замена комплектующих",
         "fullDescription": (
             "• Плановое техническое обслуживание\n"
@@ -48,7 +48,7 @@ services_data = [
     {
         "id": 4,
         "title": "Модернизация и обновления",
-        "image": "minio/cards/modernization.png",
+        "image": "http://127.0.0.1:9000/cards/modernization.png",
         "shortDescription": "Затраты на обновление программного обеспечения, модернизацию оборудования",
         "fullDescription": (
             "• Обновление программного обеспечения\n"
@@ -62,7 +62,7 @@ services_data = [
     {
         "id": 5,
         "title": "Утилизация и списание",
-        "image": "minio/cards/disposal.png",
+        "image": "http://127.0.0.1:9000/cards/disposal.png",
         "shortDescription": "Затраты на демонтаж, утилизацию, экологическую безопасность при списании актива",
         "fullDescription": (
             "• Демонтаж и разборка оборудования\n"
@@ -76,7 +76,7 @@ services_data = [
     {
         "id": 6,
         "title": "Страхование актива",
-        "image": "minio/cards/insurance.png",
+        "image": "http://127.0.0.1:9000/cards/insurance.png",
         "shortDescription": "Страховые взносы за весь период эксплуатации актива",
         "fullDescription": (
             "• Страхование от повреждений\n"
@@ -128,27 +128,3 @@ def cart(request):
 def service_detail(request, service_id):
     service = next((s for s in services_data if s["id"] == service_id), None)
     return render(request, 'main/service_detail.html', {"service": service})
-
-def minio_proxy(request, bucket_name, object_name):
-    """
-    Прокси для доступа к файлам MinIO
-    """
-    try:
-        client = get_minio_client()
-        response = client.get_object(bucket_name, object_name)
-        data = response.read()
-        response.close()
-        response.release_conn()
-
-        content_type = 'application/octet-stream'
-        lower = object_name.lower()
-        if lower.endswith('.png'):
-            content_type = 'image/png'
-        elif lower.endswith('.jpg') or lower.endswith('.jpeg'):
-            content_type = 'image/jpeg'
-        elif lower.endswith('.gif'):
-            content_type = 'image/gif'
-
-        return HttpResponse(data, content_type=content_type)
-    except Exception as e:
-        return HttpResponse(f"Error: {e}", status=404)
