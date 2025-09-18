@@ -1,9 +1,9 @@
 {% extends 'main/base.html' %}
 {% load static %}
 
-{% block title %}Корзина{% endblock %}
+{% block title %}Расчет TCO{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'main/css/cart.css' %}">
+<link rel="stylesheet" href="{% static 'main/css/calculation.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -14,14 +14,14 @@
             <div class="filter">
                 <div class="filter-label">ДАТА НАЧАЛА ЭКСПЛУАТАЦИИ</div>
                 <div class="filter-input">
-                    <input type="text" placeholder="ДД.ММ.ГГГГ">
+                    <input type="date" value="{{ current_cart.startDate }}" class="date-input">
                     <span class="filter-caret"></span>
                 </div>
             </div>
             <div class="filter">
                 <div class="filter-label">ДАТА КОНЦА ЭКСПЛУАТАЦИИ</div>
                 <div class="filter-input">
-                    <input type="text" placeholder="ДД.ММ.ГГГГ">
+                    <input type="date" value="{{ current_cart.endDate }}" class="date-input">
                     <span class="filter-caret"></span>
                 </div>
             </div>
@@ -30,16 +30,16 @@
         <div class="tco-summary">
             <div class="tco-item">
                 <span class="tco-label">Общая стоимость:</span>
-                <span class="tco-value">3,756,000 ₽</span>
+                <span class="tco-value">{{ current_cart.totalCost }}</span>
             </div>
             <div class="tco-item">
                 <span class="tco-label">Срок эксплуатации:</span>
-                <span class="tco-value">5 лет</span>
+                <span class="tco-value">{{ current_cart.duration }}</span>
             </div>
         </div>
 
         <div class="cart-list">
-            {% for component in cart_data.1.components %}
+            {% for component in current_cart.components %}
                 {% for service in services_data %}
                     {% if service.id == component.componentId %}
                     <div class="cart-card">
@@ -74,5 +74,3 @@
         </div>
     </div>
 {% endblock %}
-
-

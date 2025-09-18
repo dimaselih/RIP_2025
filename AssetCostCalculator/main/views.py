@@ -92,6 +92,10 @@ services_data = [
 cart_data = {
     1: {
         "name": "System 1",
+        "startDate": "2024-01-01",
+        "endDate": "2028-12-31",
+        "totalCost": "3,756,000 ₽",
+        "duration": "5 лет",
         "components": [
             {"componentId": 1, "replicationCount": 4},
             {"componentId": 3, "replicationCount": 2},
@@ -101,7 +105,7 @@ cart_data = {
 }
 
 
-def services(request):
+def catalog(request):
     # Обработка поиска
     search_query = request.GET.get('search', '').strip()
     filtered_services = services_data
@@ -113,16 +117,20 @@ def services(request):
                search_query.lower() in service['shortDescription'].lower()
         ]
     
-    return render(request, 'main/services.html', {
+    return render(request, 'main/catalog.html', {
         "services": filtered_services,
         "cart_data": cart_data,
         "search_query": search_query,
     })
 
-def cart(request):
-    return render(request, 'main/cart.html', {
-        "cart_data": cart_data,
+def calculation(request, cart_id):
+    # Получаем данные корзины по ID
+    current_cart = cart_data.get(cart_id, {})
+    
+    return render(request, 'main/calculation.html', {
+        "current_cart": current_cart,
         "services_data": services_data,
+        "cart_id": cart_id,
     })
 
 def service_detail(request, service_id):

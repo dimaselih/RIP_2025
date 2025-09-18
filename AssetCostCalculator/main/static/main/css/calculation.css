@@ -67,8 +67,9 @@
   align-items: center;
   border: 1px solid #58ad6e;
   border-radius: 30px;
-  padding: 8px 12px;
-  gap: 10px;
+  padding: 0;
+  gap: 0;
+  position: relative;
 }
 
 .filter-input input {
@@ -79,13 +80,51 @@
   font-weight: 700;
   font-size: 13px;
   color: #000;
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 30px;
+}
+
+/* Стили для date picker */
+.date-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Source Sans 3', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: #000;
+  cursor: pointer;
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 30px;
+}
+
+/* Скрываем стандартную иконку календаря */
+.date-input::-webkit-calendar-picker-indicator {
+  background: transparent;
+  bottom: 0;
+  color: transparent;
+  cursor: pointer;
+  height: auto;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: auto;
 }
 
 .filter-caret {
   width: 14px;
   height: 14px;
   background: #58ad6e;
-  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M7 10l5 5 5-5z"/></svg>') center / contain no-repeat;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="white" d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>') center / contain no-repeat;
+  cursor: pointer;
+  z-index: 1;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .cart-list {
