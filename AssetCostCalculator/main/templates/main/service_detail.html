@@ -1,0 +1,40 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}{{ service.title }} - TCO{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'main/css/service_detail.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="service-detail-page">
+    <!-- Home Section -->
+    <div class="home-section">
+        <a href="{% url 'catalog' %}" class="home-button">ДОМОЙ</a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="service-detail-content">
+        <!-- Service Image -->
+        <div class="service-image-large">
+            <img src="{{ service.image }}" alt="{{ service.title }}" class="detail-image">
+        </div>
+        
+        <!-- Service Info -->
+        <div class="service-info-large">
+            <h1 class="service-title-large">{{ service.title }}</h1>
+            {% if service.price %}
+                <div class="service-price-large">{{ service.price }}</div>
+            {% endif %}
+            
+            {% if service.fullDescription %}
+                <div class="included-services-section">
+                    <h2 class="section-title">Включенные услуги</h2>
+                    <div class="description-text">{{ service.fullDescription|linebreaks }}</div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
