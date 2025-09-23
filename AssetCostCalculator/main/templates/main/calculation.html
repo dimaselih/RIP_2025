@@ -99,7 +99,7 @@
             <form method="POST" action="{% url 'delete_calculation' %}" id="delete-form">
                 {% csrf_token %}
                 <input type="hidden" name="calculation_id" value="{{ calculation.id }}">
-                <button type="submit" class="delete-btn">УДАЛИТЬ ЗАЯВКУ</button>
+                <button type="submit" class="delete-btn">УДАЛИТЬ РАСЧЁТ</button>
             </form>
         </div>
     </div>

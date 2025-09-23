@@ -134,7 +134,7 @@ def delete_calculation(request):
     
     # Перенаправляем на каталог с сообщением
     from django.contrib import messages
-    messages.success(request, 'Заявка удалена')
+    messages.success(request, 'Расчёт удалён')
     return redirect('catalog')
 
 # Дополнительная функция для деталей услуги
