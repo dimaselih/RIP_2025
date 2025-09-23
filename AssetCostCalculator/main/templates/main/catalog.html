@@ -20,7 +20,7 @@
         <div class="search-container">
             <form method="GET" class="search-form">
                 <div class="search-box">
-                    <input type="text" name="search" placeholder="Поиск услуг..." class="search-input" value="{{ search_query }}">
+                    <input type="text" name="search_tcoservice" placeholder="Поиск услуг..." class="search-input" value="{{ search_query }}">
                     {% if search_query %}
                         <a href="{% url 'catalog' %}" class="clear-search" title="Очистить поиск">×</a>
                     {% endif %}

@@ -19,7 +19,7 @@ def catalog(request):
         except User.DoesNotExist:
             pass  # Если пользователь не найден, продолжаем без входа
     
-    search_query = request.GET.get('search', '').strip()
+    search_query = request.GET.get('search_tcoservice', '').strip()
     
     # Получаем услуги из БД (только не удаленные)
     services = ServiceTCO.objects.filter(is_deleted=False)
