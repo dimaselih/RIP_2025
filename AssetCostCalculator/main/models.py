@@ -59,7 +59,6 @@ class ServiceTCO(models.Model):
         help_text="Единовременная, ежемесячная или ежегодная оплата"
     )
     
-    
     class Meta:
         verbose_name = "Услуга TCO"
         verbose_name_plural = "Услуги TCO"

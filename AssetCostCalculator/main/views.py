@@ -48,7 +48,13 @@ def catalog(request):
         "search_query": search_query,
     })
 
-# 2. GET - Детали расчета
+# 2. GET - Детали услуги
+def service_detail(request, service_id):
+    """GET: Детали услуги"""
+    service = get_object_or_404(ServiceTCO, id=service_id, is_deleted=False)
+    return render(request, 'main/service_detail.html', {"service": service})
+
+# 3. GET - Детали расчета
 def calculation(request, calculation_id):
     """GET: Просмотр расчета через ORM"""
     # Исключаем удаленные расчеты из поиска
@@ -137,8 +143,3 @@ def delete_calculation(request):
     messages.success(request, 'Расчёт удалён')
     return redirect('catalog')
 
-# Дополнительная функция для деталей услуги
-def service_detail(request, service_id):
-    """GET: Детали услуги"""
-    service = get_object_or_404(ServiceTCO, id=service_id, is_deleted=False)
-    return render(request, 'main/service_detail.html', {"service": service})
