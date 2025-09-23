@@ -290,3 +290,27 @@
     font-size: 18px;
   }
 }
+
+/* Add button styles for service detail */
+.add-btn-large {
+  background: #58ad6e;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 30px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-transform: uppercase;
+  font-family: 'Source Sans 3', sans-serif;
+  margin-top: 20px;
+}
+
+.add-btn-large:hover {
+  background: #4a9a5e;
+}
+
+.service-actions {
+  margin-top: 20px;
+}

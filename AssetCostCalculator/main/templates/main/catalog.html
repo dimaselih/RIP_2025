@@ -8,6 +8,13 @@
 {% endblock %}
 
 {% block content %}
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    
     <!-- Search and Cart Section -->
     <div class="search-cart-section">
         <div class="search-container">
@@ -20,27 +27,40 @@
                 </div>
             </form>
         </div>
-        <a href="{% url 'calculation' 1 %}" class="cart-container cart-link">
+        {% if current_calculation %}
+        <a href="{% url 'calculation' current_calculation.id %}" class="cart-container cart-link">
             <img src="http://127.0.0.1:9000/technical/cart.png" alt="Cart" class="cart-img">
-            <span class="cart-count">{{ cart_data.1.components|length }}</span>
+            <span class="cart-count">{{ current_calculation.calculation_services.count }}</span>
         </a>
+        {% else %}
+        <div class="cart-container cart-inactive">
+            <img src="http://127.0.0.1:9000/technical/cart.png" alt="Cart" class="cart-img">
+            <span class="cart-count">0</span>
+        </div>
+        {% endif %}
     </div>
 
     <div class="services-grid">
         {% for s in services %}
         <div class="service-card">
             <div class="service-image">
-                <img src="{{ s.image }}" alt="{{ s.title }}" class="card-image">
+                <img src="{{ s.image_url }}" alt="{{ s.name }}" class="card-image">
             </div>
             <div class="service-content">
                 <div class="service-info">
                     <div class="service-text-container">
-                        <h3 class="service-title">{{ s.title }}</h3>
-                        <p class="service-description">{{ s.shortDescription }}</p>
+                        <h3 class="service-title">{{ s.name }}</h3>
+                        <p class="service-description">{{ s.description }}</p>
                     </div>
                 </div>
                 <div class="service-actions">
                     <a href="{% url 'service_detail' s.id %}" class="details-btn">ПОДРОБНЕЕ</a>
+                    <form method="POST" action="{% url 'add_service_to_calculation' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="service_id" value="{{ s.id }}">
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit" class="add-btn">ДОБАВИТЬ</button>
+                    </form>
                 </div>
             </div>
         </div>

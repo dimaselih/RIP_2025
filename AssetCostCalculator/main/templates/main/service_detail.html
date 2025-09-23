@@ -1,7 +1,7 @@
 {% extends 'main/base.html' %}
 {% load static %}
 
-{% block title %}{{ service.title }} - TCO{% endblock %}
+{% block title %}{{ service.name }} - TCO{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'main/css/service_detail.css' %}">
@@ -18,14 +18,18 @@
     <div class="service-detail-content">
         <!-- Service Image -->
         <div class="service-image-large">
-            <img src="{{ service.image }}" alt="{{ service.title }}" class="detail-image">
+            <img src="{{ service.image_url }}" alt="{{ service.name }}" class="detail-image">
         </div>
         
         <!-- Service Info -->
         <div class="service-info-large">
-            <h1 class="service-title-large">{{ service.title }}</h1>
+            <h1 class="service-title-large">{{ service.name }}</h1>
             {% if service.price %}
-                <div class="service-price-large">{{ service.price }}</div>
+                <div class="service-price-large">
+                    {{ service.price }} ₽
+                    {% if service.price_type == 'monthly' %}/мес{% endif %}
+                    {% if service.price_type == 'yearly' %}/год{% endif %}
+                </div>
             {% endif %}
             
             {% if service.fullDescription %}
@@ -34,6 +38,15 @@
                     <div class="description-text">{{ service.fullDescription|linebreaks }}</div>
                 </div>
             {% endif %}
+            
+            <div class="service-actions">
+                <form method="POST" action="{% url 'add_service_to_calculation' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="service_id" value="{{ service.id }}">
+                    <input type="hidden" name="quantity" value="1">
+                    <button type="submit" class="add-btn-large">ДОБАВИТЬ В КОРЗИНУ</button>
+                </form>
+            </div>
         </div>
     </div>
 </div>

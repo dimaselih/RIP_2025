@@ -1,138 +1,144 @@
-from django.shortcuts import render
-from django.http import HttpResponse
-from .minio_utils import get_minio_client
-
-services_data = [
-    {
-        "id": 1,
-        "title": "Закупка оборудования",
-        "image": "http://127.0.0.1:9000/cards/purchase.png",
-        "shortDescription": "Первоначальная стоимость приобретения актива, включая доставку, установку и настройку",
-        "fullDescription": (
-            "• Поставка оборудования в полной комплектации\n"
-            "• Доставка до места эксплуатации\n"
-            "• Распаковка и проверка комплектности\n"
-            "• Установка и первичная настройка\n"
-            "• Тестирование работоспособности"
-        ),
-        "price": "500,000 ₽",
-    },
-    {
-        "id": 2,
-        "title": "Эксплуатационные расходы",
-        "image": "http://127.0.0.1:9000/cards/operation.png",
-        "shortDescription": "Ежегодные затраты на эксплуатацию актива: энергопотребление, расходные материалы, аренда помещений",
-        "fullDescription": (
-            "• Энергопотребление и коммунальные услуги\n"
-            "• Расходные материалы и комплектующие\n"
-            "• Аренда помещений и инфраструктуры\n"
-            "• Техническое обслуживание систем\n"
-            "• Мониторинг и контроль работы"
-        ),
-        "price": "12,500 ₽/мес",
-    },
-    {
-        "id": 3,
-        "title": "Техническое обслуживание",
-        "image": "http://127.0.0.1:9000/cards/service.png",
-        "shortDescription": "Плановое и внеплановое техническое обслуживание, ремонты, замена комплектующих",
-        "fullDescription": (
-            "• Плановое техническое обслуживание\n"
-            "• Внеплановые ремонты и диагностика\n"
-            "• Замена изношенных комплектующих\n"
-            "• Профилактические работы\n"
-            "• Консультации и техническая поддержка"
-        ),
-        "price": "6,700 ₽/мес",
-    },
-    {
-        "id": 4,
-        "title": "Модернизация и обновления",
-        "image": "http://127.0.0.1:9000/cards/modernization.png",
-        "shortDescription": "Затраты на обновление программного обеспечения, модернизацию оборудования",
-        "fullDescription": (
-            "• Обновление программного обеспечения\n"
-            "• Апгрейд аппаратного обеспечения\n"
-            "• Внедрение новых технологий\n"
-            "• Улучшение функциональности\n"
-            "• Обучение персонала новым возможностям"
-        ),
-        "price": "200,000 ₽",
-    },
-    {
-        "id": 5,
-        "title": "Утилизация и списание",
-        "image": "http://127.0.0.1:9000/cards/disposal.png",
-        "shortDescription": "Затраты на демонтаж, утилизацию, экологическую безопасность при списании актива",
-        "fullDescription": (
-            "• Демонтаж и разборка оборудования\n"
-            "• Утилизация в соответствии с экологическими нормами\n"
-            "• Уничтожение конфиденциальных данных\n"
-            "• Оформление документов по списанию\n"
-            "• Утилизация отходов и материалов"
-        ),
-        "price": "30,000 ₽",
-    },
-    {
-        "id": 6,
-        "title": "Страхование актива",
-        "image": "http://127.0.0.1:9000/cards/insurance.png",
-        "shortDescription": "Страховые взносы за весь период эксплуатации актива",
-        "fullDescription": (
-            "• Страхование от повреждений\n"
-            "• Страхование от кражи и потери\n"
-            "• Защита от форс-мажорных обстоятельств\n"
-            "• Страхование ответственности\n"
-            "• Техническая поддержка при страховых случаях"
-        ),
-        "price": "2,100 ₽/мес",
-    },
-]
-
-cart_data = {
-    1: {
-        "name": "System 1",
-        "startDate": "2024-01-01",
-        "endDate": "2028-12-31",
-        "totalCost": "3,756,000 ₽",
-        "duration": "5 лет",
-        "components": [
-            {"componentId": 1, "replicationCount": 4},
-            {"componentId": 3, "replicationCount": 2},
-            {"componentId": 6, "replicationCount": 3},
-        ],
-    }
-}
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
+from django.contrib.auth.models import User
+from django.db import transaction, connection
+from django.db.models import Q
+from .models import ServiceTCO, Calculation, CalculationService
 
 
+# 1. GET - Список услуг с поиском
 def catalog(request):
-    # Обработка поиска
-    search_query = request.GET.get('search', '').strip()
-    filtered_services = services_data
+    """GET: Получение и поиск услуг через ORM"""
+    # Автоматический вход пользователя для демонстрации
+    if not request.user.is_authenticated:
+        try:
+            user = User.objects.get(username='user1')
+            login(request, user)
+        except User.DoesNotExist:
+            pass  # Если пользователь не найден, продолжаем без входа
     
+    search_query = request.GET.get('search', '').strip()
+    
+    # Получаем услуги из БД (только не удаленные)
+    services = ServiceTCO.objects.filter(is_deleted=False)
+    
+    # Поиск по названию и описанию
     if search_query:
-        filtered_services = [
-            service for service in services_data
-            if search_query.lower() in service['title'].lower() or 
-               search_query.lower() in service['shortDescription'].lower()
-        ]
+        services = services.filter(
+            Q(name__icontains=search_query) | 
+            Q(description__icontains=search_query)
+        )
+    
+    # Получаем текущий расчет пользователя (черновик)
+    current_calculation = None
+    if request.user.is_authenticated:
+        try:
+            current_calculation = Calculation.objects.get(
+                creator=request.user, 
+                status='draft'
+            )
+        except Calculation.DoesNotExist:
+            current_calculation = None
     
     return render(request, 'main/catalog.html', {
-        "services": filtered_services,
-        "cart_data": cart_data,
+        "services": services,
+        "current_calculation": current_calculation,
         "search_query": search_query,
     })
 
-def calculation(request, cart_id):
-    # Получаем данные корзины по ID
-    current_cart = cart_data.get(cart_id, {})
+# 2. GET - Детали расчета
+def calculation(request, calculation_id):
+    """GET: Просмотр расчета через ORM"""
+    # Исключаем удаленные расчеты из поиска
+    calculation = get_object_or_404(
+        Calculation, 
+        id=calculation_id,
+        status__in=['draft', 'formed', 'completed', 'rejected']  # Исключаем 'deleted'
+    )
+    
+    # Получаем услуги в расчете
+    calculation_services = calculation.calculation_services.all()
     
     return render(request, 'main/calculation.html', {
-        "current_cart": current_cart,
-        "services_data": services_data,
-        "cart_id": cart_id,
+        "calculation": calculation,
+        "calculation_services": calculation_services,
     })
 
+# 4. POST - Добавление услуги в расчет
+@login_required
+def add_service_to_calculation(request):
+    """POST: Добавление услуги в расчет через ORM"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    service_id = request.POST.get('service_id')
+    quantity = int(request.POST.get('quantity', 1))
+    
+    try:
+        service = ServiceTCO.objects.get(id=service_id, is_deleted=False)
+    except ServiceTCO.DoesNotExist:
+        return JsonResponse({'error': 'Service not found'}, status=404)
+    
+    with transaction.atomic():
+        # Получаем или создаем черновик расчета
+        calculation, created = Calculation.objects.get_or_create(
+            creator=request.user,
+            status='draft',
+            defaults={'status': 'draft'}
+        )
+        
+        # Добавляем или обновляем услугу в расчете
+        calculation_service, created = CalculationService.objects.get_or_create(
+            calculation=calculation,
+            service=service,
+            defaults={'quantity': quantity}
+        )
+        
+        if not created:
+            calculation_service.quantity += quantity
+            calculation_service.save()
+    
+    # Перенаправляем обратно на каталог с сообщением
+    from django.contrib import messages
+    messages.success(request, f'Услуга "{service.name}" добавлена в расчет')
+    return redirect('catalog')
+
+# 5. POST - Логическое удаление расчета через SQL
+@login_required
+def delete_calculation(request):
+    """POST: Логическое удаление расчета через SQL UPDATE"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    calculation_id = request.POST.get('calculation_id')
+    
+    # Проверяем, что расчет принадлежит пользователю
+    try:
+        calculation = Calculation.objects.get(
+            id=calculation_id, 
+            creator=request.user
+        )
+    except Calculation.DoesNotExist:
+        from django.contrib import messages
+        messages.error(request, 'Расчет не найден')
+        return redirect('catalog')
+    
+    # Логическое удаление через SQL UPDATE
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE main_calculation SET status = 'deleted' WHERE id = %s",
+            [calculation_id]
+        )
+    
+    # Перенаправляем на каталог с сообщением
+    from django.contrib import messages
+    messages.success(request, 'Заявка удалена')
+    return redirect('catalog')
+
+# Дополнительная функция для деталей услуги
 def service_detail(request, service_id):
-    service = next((s for s in services_data if s["id"] == service_id), None)
+    """GET: Детали услуги"""
+    service = get_object_or_404(ServiceTCO, id=service_id, is_deleted=False)
     return render(request, 'main/service_detail.html', {"service": service})

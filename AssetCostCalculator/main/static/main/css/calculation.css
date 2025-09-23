@@ -276,3 +276,79 @@
   color: #666;
   font-family: 'Source Sans 3', sans-serif;
 }
+
+/* Delete Button Styles */
+.delete-section {
+  display: flex;
+  justify-content: center;
+  margin: 30px 0;
+  padding: 0 20px;
+}
+
+.delete-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 15px 40px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  font-family: 'Source Sans 3', sans-serif;
+  min-width: 200px;
+}
+
+.delete-btn:hover {
+  background: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.delete-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+}
+
+/* Home button section */
+.home-section {
+  padding: 0 30px 20px 30px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* Date fields section */
+.date-fields {
+  display: flex;
+  gap: 20px;
+  padding: 0 30px 0 0;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-right: 160px;
+}
+
+.home-section .home-button {
+  background: transparent;
+  border: 1px solid #58ad6e;
+  border-radius: 30px;
+  padding: 15px 25px;
+  color: #58ad6e;
+  font-family: 'Source Sans 3', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 13px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.home-section .home-button:hover {
+  background: #58ad6e;
+  color: white;
+  text-decoration: none;
+}

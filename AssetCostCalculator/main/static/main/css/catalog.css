@@ -326,3 +326,30 @@
         width: 250px;
     }
 }
+
+/* Add button styles */
+.add-btn {
+    background: #58ad6e;
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+.add-btn:hover {
+    background: #4a9a5e;
+    transform: translateY(-1px);
+}
+
+.service-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Alert messages are now in base.css */

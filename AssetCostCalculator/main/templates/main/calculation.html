@@ -11,18 +11,26 @@
         <div class="cart-header"></div>
 
         <div class="cart-filters">
-            <div class="filter">
-                <div class="filter-label">ДАТА НАЧАЛА ЭКСПЛУАТАЦИИ</div>
-                <div class="filter-input">
-                    <input type="date" value="{{ current_cart.startDate }}" class="date-input">
-                    <span class="filter-caret"></span>
-                </div>
+            <!-- Home Button Row -->
+            <div class="home-section">
+                <a href="{% url 'catalog' %}" class="home-button">ДОМОЙ</a>
             </div>
-            <div class="filter">
-                <div class="filter-label">ДАТА КОНЦА ЭКСПЛУАТАЦИИ</div>
-                <div class="filter-input">
-                    <input type="date" value="{{ current_cart.endDate }}" class="date-input">
-                    <span class="filter-caret"></span>
+            
+            <!-- Date Fields Row -->
+            <div class="date-fields">
+                <div class="filter">
+                    <div class="filter-label">ДАТА НАЧАЛА ЭКСПЛУАТАЦИИ</div>
+                    <div class="filter-input">
+                        <input type="date" class="date-input" value="{{ calculation.start_date|date:'Y-m-d' }}">
+                        <span class="filter-caret"></span>
+                    </div>
+                </div>
+                <div class="filter">
+                    <div class="filter-label">ДАТА КОНЦА ЭКСПЛУАТАЦИИ</div>
+                    <div class="filter-input">
+                        <input type="date" class="date-input" value="{{ calculation.end_date|date:'Y-m-d' }}">
+                        <span class="filter-caret"></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -30,47 +38,69 @@
         <div class="tco-summary">
             <div class="tco-item">
                 <span class="tco-label">Общая стоимость:</span>
-                <span class="tco-value">{{ current_cart.totalCost }}</span>
+                <span class="tco-value">
+                    {% if calculation.total_cost %}
+                        {{ calculation.total_cost }}₽
+                    {% else %}
+                        Не рассчитано
+                    {% endif %}
+                </span>
             </div>
             <div class="tco-item">
                 <span class="tco-label">Срок эксплуатации:</span>
-                <span class="tco-value">{{ current_cart.duration }}</span>
+                <span class="tco-value">
+                    {% if calculation.duration_months %}
+                        {{ calculation.duration_months }} месяцев
+                    {% else %}
+                        Не указано
+                    {% endif %}
+                </span>
             </div>
         </div>
 
+
         <div class="cart-list">
-            {% for component in current_cart.components %}
-                {% for service in services_data %}
-                    {% if service.id == component.componentId %}
-                    <div class="cart-card">
-                        <div class="cart-card-image">
-                            <img src="{{ service.image }}" alt="{{ service.title }}">
-                        </div>
-                        <div class="cart-card-content">
-                            <div class="cart-card-text">
-                                <h3 class="cart-card-title">{{ service.title }}</h3>
-                                <p class="cart-card-desc">{{ service.shortDescription }}</p>
-                                {% if service.price %}
-                                    <p class="cart-card-price">{{ service.price }}</p>
-                                {% endif %}
-                            </div>
-                            <div class="cart-card-actions">
-                                <a href="{% url 'service_detail' service.id %}" class="details-btn">ПОДРОБНЕЕ</a>
-                            </div>
-                        </div>
-                        <div class="cart-card-right">
-                            <div class="quantity">
-                                <button class="qty-btn" aria-label="decrease">-</button>
-                                <span class="qty-value">{{ component.replicationCount }}</span>
-                                <button class="qty-btn" aria-label="increase">+</button>
-                            </div>
-                        </div>
+            {% for calc_service in calculation_services %}
+            <div class="cart-card">
+                <div class="cart-card-image">
+                    <img src="{{ calc_service.service.image_url }}" alt="{{ calc_service.service.name }}">
+                </div>
+                <div class="cart-card-content">
+                    <div class="cart-card-text">
+                        <h3 class="cart-card-title">{{ calc_service.service.name }}</h3>
+                        <p class="cart-card-desc">{{ calc_service.service.description }}</p>
+                        {% if calc_service.service.price %}
+                            <p class="cart-card-price">
+                                {{ calc_service.service.price }}₽
+                                {% if calc_service.service.price_type == 'monthly' %} /мес{% endif %}
+                                {% if calc_service.service.price_type == 'yearly' %} /год{% endif %}
+                            </p>
+                        {% endif %}
                     </div>
-                    {% endif %}
-                {% endfor %}
+                    <div class="cart-card-actions">
+                        <a href="{% url 'service_detail' calc_service.service.id %}" class="details-btn">ПОДРОБНЕЕ</a>
+                    </div>
+                </div>
+                <div class="cart-card-right">
+                    <div class="quantity">
+                        <button class="qty-btn" aria-label="decrease">-</button>
+                        <span class="qty-value">{{ calc_service.quantity }}</span>
+                        <button class="qty-btn" aria-label="increase">+</button>
+                    </div>
+                </div>
+            </div>
             {% empty %}
             <div class="no-items">Пока нет выбранных услуг</div>
             {% endfor %}
+        </div>
+
+        <!-- Delete Request Button -->
+        <div class="delete-section">
+            <form method="POST" action="{% url 'delete_calculation' %}" id="delete-form">
+                {% csrf_token %}
+                <input type="hidden" name="calculation_id" value="{{ calculation.id }}">
+                <button type="submit" class="delete-btn">УДАЛИТЬ ЗАЯВКУ</button>
+            </form>
         </div>
     </div>
 {% endblock %}
