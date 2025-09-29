@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-0_ab9&tv1#3w*8w+=9r!#y-d428_ux)f+9c=5bq+6=kj4h8g4q
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -38,17 +38,32 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'main.middleware.DisableCSRFForAPI',  # Отключаем CSRF для API
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Отключаем CSRF для API эндпоинтов
+CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000']
+
+# Настройки DRF
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'main.authentication.CsrfExemptSessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
 
 ROOT_URLCONF = 'AssetCostCalculator.urls'
 
@@ -128,10 +143,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # MinIO Configuration
 MINIO_ENDPOINT = 'localhost:9000'
-MINIO_ACCESS_KEY = 'myaccesskey'
-MINIO_SECRET_KEY = 'mysecretkey123'
+MINIO_ACCESS_KEY = 'minio'
+MINIO_SECRET_KEY = 'minio124'
 MINIO_USE_SSL = False
-MINIO_MEDIA_FILES_BUCKET = 'technical'
-MINIO_STATIC_FILES_BUCKET = 'technical'
+MINIO_MEDIA_FILES_BUCKET = 'cards'
+MINIO_STATIC_FILES_BUCKET = 'cards'
 MINIO_PRIVATE_BUCKETS = []
-MINIO_PUBLIC_BUCKETS = ['technical']
+MINIO_PUBLIC_BUCKETS = ['cards']
