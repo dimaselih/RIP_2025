@@ -34,13 +34,34 @@
     transition: all 0.2s ease;
 }
 
-.cart-link:hover {
-    background: #58ad6e;
-    color: white;
+/* Активная корзина (с товарами) - зеленая */
+.cart-active {
+    background: #58ad6e !important;
+    color: white !important;
 }
 
-.cart-link:hover .cart-count {
-    color: white;
+.cart-active .cart-count {
+    color: white !important;
+}
+
+/* Неактивная корзина (пустая) - белая */
+.cart-inactive {
+    background: white !important;
+    color: #58ad6e !important;
+}
+
+.cart-inactive .cart-count {
+    color: #58ad6e !important;
+}
+
+/* Hover эффект для активной корзины */
+.cart-active:hover {
+    background: #4a9a5a !important;
+}
+
+/* Hover эффект для неактивной корзины */
+.cart-inactive:hover {
+    background: #f0f0f0 !important;
 }
 
 /* Search styles */
@@ -142,7 +163,6 @@
 }
 
 .cart-count {
-    color: #58ad6e;
     font-family: 'Source Sans 3', sans-serif;
     font-weight: 700;
     font-size: 13px;

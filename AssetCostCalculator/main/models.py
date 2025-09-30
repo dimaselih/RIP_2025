@@ -68,8 +68,8 @@ class ServiceTCO(models.Model):
         return self.name
 
 
-class Calculation(models.Model):
-    """Таблица расчетов"""
+class CalculationTCO(models.Model):
+    """Таблица расчетов TCO"""
     
     STATUS_CHOICES = [
         ('draft', 'Черновик'),
@@ -147,8 +147,8 @@ class Calculation(models.Model):
     )
     
     class Meta:
-        verbose_name = "Расчет"
-        verbose_name_plural = "Расчеты"
+        verbose_name = "Расчет TCO"
+        verbose_name_plural = "Расчеты TCO"
         ordering = ['-created_at']
         constraints = [
             models.UniqueConstraint(
@@ -167,7 +167,7 @@ class CalculationService(models.Model):
     """Таблица м-м расчеты-услуги (составной уникальный ключ)"""
     
     calculation = models.ForeignKey(
-        Calculation,
+        CalculationTCO,
         on_delete=models.PROTECT,
         related_name='calculation_services',
         verbose_name="Расчет"

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from .models import ServiceTCO, Calculation, CalculationService
+from .models import ServiceTCO, CalculationTCO, CalculationService
 
 # Register your models here.
 class CustomUserAdmin(UserAdmin):
@@ -16,7 +16,7 @@ class CustomUserAdmin(UserAdmin):
 
 # Регистрируем модели
 admin.site.register(ServiceTCO)
-admin.site.register(Calculation)
+admin.site.register(CalculationTCO)
 admin.site.register(CalculationService)
 
 # Перерегистрируем User с кастомной админкой

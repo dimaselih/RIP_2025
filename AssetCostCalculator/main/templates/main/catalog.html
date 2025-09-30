@@ -8,12 +8,6 @@
 {% endblock %}
 
 {% block content %}
-    <!-- Messages -->
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
     
     <!-- Search and Cart Section -->
     <div class="search-cart-section">
@@ -22,13 +16,13 @@
                 <div class="search-box">
                     <input type="text" name="search_tcoservice" placeholder="Поиск услуг..." class="search-input" value="{{ search_query }}">
                     {% if search_query %}
-                        <a href="{% url 'catalog' %}" class="clear-search" title="Очистить поиск">×</a>
+                        <a href="{% url 'catalog_tco' %}" class="clear-search" title="Очистить поиск">×</a>
                     {% endif %}
                 </div>
             </form>
         </div>
-        {% if current_calculation %}
-        <a href="{% url 'calculation' current_calculation.id %}" class="cart-container cart-link">
+        {% if current_calculation and current_calculation.calculation_services.count > 0 %}
+        <a href="{% url 'calculation_tco' current_calculation.id %}" class="cart-container cart-active">
             <img src="http://127.0.0.1:9000/technical/cart.png" alt="Cart" class="cart-img">
             <span class="cart-count">{{ current_calculation.calculation_services.count }}</span>
         </a>

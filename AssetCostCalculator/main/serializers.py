@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ServiceTCO, Calculation, CalculationService, User
+from .models import ServiceTCO, CalculationTCO, CalculationService, User
 
 
 class ServiceTCOSerializer(serializers.ModelSerializer):
@@ -36,14 +36,14 @@ class CalculationServiceSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
-class CalculationSerializer(serializers.ModelSerializer):
+class CalculationTCOSerializer(serializers.ModelSerializer):
     """Сериализатор для заявок"""
     creator = serializers.StringRelatedField(read_only=True)
     moderator = serializers.StringRelatedField(read_only=True)
     calculation_services = CalculationServiceSerializer(many=True, read_only=True)
     
     class Meta:
-        model = Calculation
+        model = CalculationTCO
         fields = [
             'id', 'status', 'created_at', 'formed_at', 'completed_at',
             'creator', 'moderator', 'total_cost', 'duration_months',
@@ -55,13 +55,13 @@ class CalculationSerializer(serializers.ModelSerializer):
         ]
 
 
-class CalculationListSerializer(serializers.ModelSerializer):
+class CalculationTCOListSerializer(serializers.ModelSerializer):
     """Сериализатор для списка заявок (без деталей)"""
     creator_username = serializers.CharField(source='creator.username', read_only=True)
     moderator_username = serializers.CharField(source='moderator.username', read_only=True)
     
     class Meta:
-        model = Calculation
+        model = CalculationTCO
         fields = [
             'id', 'status', 'created_at', 'formed_at', 'completed_at',
             'creator_username', 'moderator_username', 'total_cost'
@@ -74,9 +74,6 @@ class CartIconSerializer(serializers.Serializer):
     services_count = serializers.IntegerField()
 
 
-class AddToCartSerializer(serializers.Serializer):
-    """Сериализатор для добавления услуги в корзину"""
-    quantity = serializers.IntegerField(min_value=1, default=1)
 
 
 class UpdateCartItemSerializer(serializers.ModelSerializer):
@@ -87,13 +84,13 @@ class UpdateCartItemSerializer(serializers.ModelSerializer):
         fields = ['quantity']
 
 
-class FormCalculationSerializer(serializers.Serializer):
+class FormCalculationTCOSerializer(serializers.Serializer):
     """Сериализатор для формирования заявки"""
     start_date = serializers.DateField()
     end_date = serializers.DateField()
 
 
-class CompleteCalculationSerializer(serializers.Serializer):
+class CompleteCalculationTCOSerializer(serializers.Serializer):
     """Сериализатор для завершения заявки"""
     action = serializers.ChoiceField(choices=['complete', 'reject'])
     moderator_comment = serializers.CharField(required=False, allow_blank=True)

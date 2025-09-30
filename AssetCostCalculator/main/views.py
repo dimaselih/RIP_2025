@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from .models import ServiceTCO, Calculation, CalculationService
+from .models import ServiceTCO, CalculationTCO, CalculationService
 
 # DRF imports
 from rest_framework.views import APIView
@@ -17,10 +17,10 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from .serializers import (
     ServiceTCOSerializer, ServiceTCOListSerializer, 
-    AddToCartSerializer, ServiceImageUploadSerializer,
-    CalculationSerializer, CalculationListSerializer,
-    CartIconSerializer, FormCalculationSerializer,
-    CompleteCalculationSerializer, CalculationServiceSerializer,
+    ServiceImageUploadSerializer,
+    CalculationTCOSerializer, CalculationTCOListSerializer,
+    CartIconSerializer, FormCalculationTCOSerializer,
+    CompleteCalculationTCOSerializer, CalculationServiceSerializer,
     UserRegistrationSerializer, UserProfileSerializer
 )
 from .minio_utils import get_minio_client
@@ -84,11 +84,11 @@ def catalog(request):
     current_calculation = None
     if request.user.is_authenticated:
         try:
-            current_calculation = Calculation.objects.get(
+            current_calculation = CalculationTCO.objects.get(
                 creator=request.user, 
                 status='draft'
             )
-        except Calculation.DoesNotExist:
+        except CalculationTCO.DoesNotExist:
             current_calculation = None
     
     return render(request, 'main/catalog.html', {
@@ -108,7 +108,7 @@ def calculation(request, calculation_id):
     """GET: Просмотр расчета через ORM"""
     # Исключаем удаленные расчеты из поиска
     calculation = get_object_or_404(
-        Calculation, 
+        CalculationTCO, 
         id=calculation_id,
         status__in=['draft', 'formed', 'completed', 'rejected']  # Исключаем 'deleted'
     )
@@ -138,7 +138,7 @@ def add_service_to_calculation(request):
     
     with transaction.atomic():
         # Получаем или создаем черновик расчета
-        calculation, created = Calculation.objects.get_or_create(
+        calculation, created = CalculationTCO.objects.get_or_create(
             creator=request.user,
             status='draft',
             defaults={'status': 'draft'}
@@ -155,10 +155,8 @@ def add_service_to_calculation(request):
             calculation_service.quantity += quantity
             calculation_service.save()
     
-    # Перенаправляем обратно на каталог с сообщением
-    from django.contrib import messages
-    messages.success(request, f'Услуга "{service.name}" добавлена в расчет')
-    return redirect('catalog')
+    # Перенаправляем обратно на каталог
+    return redirect('catalog_tco')
 
 # 5. POST - Логическое удаление расчета через SQL
 @login_required
@@ -171,26 +169,22 @@ def delete_calculation(request):
     
     # Проверяем, что расчет принадлежит пользователю
     try:
-        calculation = Calculation.objects.get(
+        calculation = CalculationTCO.objects.get(
             id=calculation_id, 
             creator=request.user
         )
-    except Calculation.DoesNotExist:
-        from django.contrib import messages
-        messages.error(request, 'Расчет не найден')
-        return redirect('catalog')
+    except CalculationTCO.DoesNotExist:
+        return redirect('catalog_tco')
     
     # Логическое удаление через SQL UPDATE
     with connection.cursor() as cursor:
         cursor.execute(
-            "UPDATE main_calculation SET status = 'deleted' WHERE id = %s",
+            "UPDATE main_calculationtco SET status = 'deleted' WHERE id = %s",
             [calculation_id]
         )
     
-    # Перенаправляем на каталог с сообщением
-    from django.contrib import messages
-    messages.success(request, 'Расчёт удалён')
-    return redirect('catalog')
+    # Перенаправляем на каталог
+    return redirect('catalog_tco')
 
 
 # ==================== API VIEWS ====================
@@ -279,18 +273,14 @@ class ServiceAddToCartAPIView(APIView):
         # Получаем услугу
         service = get_object_or_404(ServiceTCO, pk=pk, is_deleted=False)
         
-        # Валидируем данные
-        serializer = AddToCartSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        quantity = serializer.validated_data['quantity']
+        # Всегда добавляем только 1 единицу
+        quantity = 1
         
         with transaction.atomic():
             # Получаем константного создателя
             creator = get_constant_creator()
             
-            calculation, created = Calculation.objects.get_or_create(
+            calculation, created = CalculationTCO.objects.get_or_create(
                 creator=creator,
                 status='draft',
                 defaults={'status': 'draft'}
@@ -379,7 +369,7 @@ class CartIconAPIView(APIView):
         try:
             # Получаем черновик заявки константного создателя
             creator = get_constant_creator()
-            calculation = Calculation.objects.get(creator=creator, status='draft')
+            calculation = CalculationTCO.objects.get(creator=creator, status='draft')
             services_count = calculation.calculation_services.count()
             
             serializer = CartIconSerializer({
@@ -388,7 +378,7 @@ class CartIconAPIView(APIView):
             })
             return Response(serializer.data)
             
-        except Calculation.DoesNotExist:
+        except CalculationTCO.DoesNotExist:
             # Если черновика нет, возвращаем пустую корзину
             serializer = CartIconSerializer({
                 'calculation_id': None,
@@ -398,7 +388,7 @@ class CartIconAPIView(APIView):
     
 
 
-class CalculationListAPIView(APIView):
+class CalculationTCOListAPIView(APIView):
     """GET список заявок (кроме удаленных и черновика) с фильтрацией"""
     
     def get(self, request):
@@ -408,7 +398,7 @@ class CalculationListAPIView(APIView):
         date_to = request.query_params.get('date_to', '')
         
         # Базовый queryset (исключаем удаленные и черновики)
-        calculations = Calculation.objects.exclude(
+        calculations = CalculationTCO.objects.exclude(
             status__in=['deleted', 'draft']
         )
         
@@ -423,48 +413,48 @@ class CalculationListAPIView(APIView):
             calculations = calculations.filter(formed_at__date__lte=date_to)
         
         # Сериализуем
-        serializer = CalculationListSerializer(calculations, many=True)
+        serializer = CalculationTCOListSerializer(calculations, many=True)
         return Response(serializer.data)
 
 
-class CalculationDetailAPIView(APIView):
+class CalculationTCODetailAPIView(APIView):
     """GET одна заявка с услугами и картинками"""
     
     def get(self, request, pk):
         calculation = get_object_or_404(
-            Calculation, 
+            CalculationTCO, 
             pk=pk,
             status__in=['draft', 'formed', 'completed', 'rejected']
         )
-        serializer = CalculationSerializer(calculation)
+        serializer = CalculationTCOSerializer(calculation)
         return Response(serializer.data)
 
 
-class CalculationUpdateAPIView(APIView):
+class CalculationTCOUpdateAPIView(APIView):
     """PUT изменения полей заявки"""
     
     def put(self, request, pk):
-        calculation = get_object_or_404(Calculation, pk=pk, status='draft')
+        calculation = get_object_or_404(CalculationTCO, pk=pk, status='draft')
         
         # Разрешаем изменять только определенные поля
         allowed_fields = ['start_date', 'end_date']
         data = {k: v for k, v in request.data.items() if k in allowed_fields}
         
-        serializer = CalculationSerializer(calculation, data=data, partial=True)
+        serializer = CalculationTCOSerializer(calculation, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CalculationFormAPIView(APIView):
+class CalculationTCOFormAPIView(APIView):
     """PUT сформировать заявку (проверка обязательных полей)"""
     
     def put(self, request, pk):
-        calculation = get_object_or_404(Calculation, pk=pk, status='draft')
+        calculation = get_object_or_404(CalculationTCO, pk=pk, status='draft')
         
         # Валидируем данные
-        serializer = FormCalculationSerializer(data=request.data)
+        serializer = FormCalculationTCOSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
@@ -481,18 +471,18 @@ class CalculationFormAPIView(APIView):
         calculation.formed_at = timezone.now()
         calculation.save()
         
-        response_serializer = CalculationSerializer(calculation)
+        response_serializer = CalculationTCOSerializer(calculation)
         return Response(response_serializer.data)
 
 
-class CalculationCompleteAPIView(APIView):
+class CalculationTCOCompleteAPIView(APIView):
     """PUT завершить/отклонить заявку (вычисление стоимости)"""
     
     def put(self, request, pk):
-        calculation = get_object_or_404(Calculation, pk=pk, status='formed')
+        calculation = get_object_or_404(CalculationTCO, pk=pk, status='formed')
         
         # Валидируем данные
-        serializer = CompleteCalculationSerializer(data=request.data)
+        serializer = CompleteCalculationTCOSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
@@ -516,7 +506,7 @@ class CalculationCompleteAPIView(APIView):
         calculation.completed_at = timezone.now()
         calculation.save()
         
-        response_serializer = CalculationSerializer(calculation)
+        response_serializer = CalculationTCOSerializer(calculation)
         return Response(response_serializer.data)
     
     def _calculate_cost_and_duration(self, calculation):
@@ -552,11 +542,11 @@ class CalculationCompleteAPIView(APIView):
     
 
 
-class CalculationDeleteAPIView(APIView):
+class CalculationTCODeleteAPIView(APIView):
     """DELETE удаление заявки (логическое удаление)"""
     
     def delete(self, request, pk):
-        calculation = get_object_or_404(Calculation, pk=pk, status='draft')
+        calculation = get_object_or_404(CalculationTCO, pk=pk, status='draft')
         
         # Логическое удаление
         calculation.status = 'deleted'
@@ -582,7 +572,7 @@ class CalculationServiceDeleteAPIView(APIView):
         
         try:
             # Получаем заявку-черновик константного создателя
-            calculation = Calculation.objects.get(
+            calculation = CalculationTCO.objects.get(
                 id=calculation_id,
                 creator=get_constant_creator(),
                 status='draft'
@@ -604,7 +594,7 @@ class CalculationServiceDeleteAPIView(APIView):
                 'message': f'Услуга "{service.name}" удалена из корзины'
             }, status=status.HTTP_200_OK)
             
-        except Calculation.DoesNotExist:
+        except CalculationTCO.DoesNotExist:
             return Response({
                 'error': 'Заявка-черновик не найдена'
             }, status=status.HTTP_404_NOT_FOUND)
@@ -629,7 +619,7 @@ class CalculationServiceUpdateAPIView(APIView):
         
         try:
             # Получаем заявку-черновик константного создателя
-            calculation = Calculation.objects.get(
+            calculation = CalculationTCO.objects.get(
                 id=calculation_id,
                 creator=get_constant_creator(),
                 status='draft'
@@ -679,7 +669,7 @@ class CalculationServiceUpdateAPIView(APIView):
             response_serializer = CalculationServiceSerializer(calculation_service)
             return Response(response_serializer.data)
             
-        except Calculation.DoesNotExist:
+        except CalculationTCO.DoesNotExist:
             return Response({
                 'error': 'Заявка-черновик не найдена'
             }, status=status.HTTP_404_NOT_FOUND)
