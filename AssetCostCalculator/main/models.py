@@ -1,5 +1,7 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, AbstractBaseUser, PermissionsMixin, UserManager
+from django.conf import settings
+from django.utils import timezone
 
 # Create your models here.
 
@@ -90,7 +92,7 @@ class Calculation(models.Model):
         verbose_name="Дата создания"
     )
     creator = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name='created_requests',
         verbose_name="Создатель"
@@ -108,7 +110,7 @@ class Calculation(models.Model):
         verbose_name="Дата завершения"
     )
     moderator = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -200,3 +202,35 @@ class CalculationService(models.Model):
     
     def __str__(self):
         return f"{self.calculation} - {self.service} (x{self.quantity})"
+
+
+# Кастомная модель пользователя согласно методичке
+class NewUserManager(UserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError('User must have an email address')
+        
+        email = self.normalize_email(email) 
+        user = self.model(email=email, **extra_fields) 
+        user.set_password(password)
+        user.save(using=self.db)
+        return user
+
+
+class CustomUser(AbstractBaseUser, PermissionsMixin):
+    email = models.EmailField("email адрес", unique=True)
+    is_staff = models.BooleanField(default=False, verbose_name="Является ли пользователь менеджером?")
+    is_superuser = models.BooleanField(default=False, verbose_name="Является ли пользователь админом?")
+    is_active = models.BooleanField(default=True, verbose_name="Активный пользователь")
+    date_joined = models.DateTimeField(default=timezone.now, verbose_name="Дата регистрации")
+
+    USERNAME_FIELD = 'email'
+
+    objects = NewUserManager()
+    
+    class Meta:
+        verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"
+    
+    def __str__(self):
+        return self.email

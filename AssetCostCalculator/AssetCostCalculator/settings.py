@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -53,7 +54,12 @@ MIDDLEWARE = [
 ]
 
 # Отключаем CSRF для API эндпоинтов
-CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000']
+CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000']
+
+# Дополнительные настройки CSRF
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
+CSRF_USE_SESSIONS = False
 
 # Настройки DRF
 REST_FRAMEWORK = {
@@ -97,6 +103,73 @@ DATABASES = {
         'HOST': 'localhost',
         'PORT': '5432',
     }
+}
+
+# Redis configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://localhost:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+# Session configuration
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+SESSION_COOKIE_AGE = 1209600  # 2 недели
+SESSION_COOKIE_HTTPONLY = False  # False для Swagger UI
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_SAMESITE = 'Lax'  # Lax для работы с Swagger UI
+SESSION_SAVE_EVERY_REQUEST = True  # Сохранять сессию при каждом запросе
+
+# DRF configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20
+}
+
+# Кастомная модель пользователя
+AUTH_USER_MODEL = 'main.CustomUser'
+
+# Swagger settings
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'SessionAuthentication': {
+            'type': 'apiKey',
+            'in': 'cookie',
+            'name': 'sessionid',
+            'description': 'Django session authentication'
+        }
+    },
+    'USE_SESSION_AUTH': True,
+    'LOGIN_URL': '/admin/login/',
+    'LOGOUT_URL': '/admin/logout/',
+    'SUPPORTED_SUBMIT_METHODS': [
+        'get',
+        'post',
+        'put',
+        'delete',
+        'patch'
+    ],
+    'OPERATIONS_SORTER': 'method',
+    'TAGS_SORTER': 'alpha',
+    'DOC_EXPANSION': 'none',
+    'DEEP_LINKING': True,
+    'SHOW_EXTENSIONS': True,
+    'SHOW_COMMON_EXTENSIONS': True,
 }
 
 
@@ -150,3 +223,36 @@ MINIO_MEDIA_FILES_BUCKET = 'cards'
 MINIO_STATIC_FILES_BUCKET = 'cards'
 MINIO_PRIVATE_BUCKETS = []
 MINIO_PUBLIC_BUCKETS = ['cards']
+
+# Swagger настройки для режима инкогнито
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'SessionAuthentication': {
+            'type': 'apiKey',
+            'in': 'cookie',
+            'name': 'sessionid',
+            'description': 'Session ID для аутентификации через куки'
+        }
+    },
+    'USE_SESSION_AUTH': True,
+    'LOGIN_URL': '/api/login/',
+    'LOGOUT_URL': '/api/logout/',
+    'SUPPORTED_SUBMIT_METHODS': [
+        'get',
+        'post',
+        'put',
+        'delete',
+        'patch'
+    ],
+    'OPERATIONS_SORTER': 'alpha',
+    'TAGS_SORTER': 'alpha',
+    'DOC_EXPANSION': 'list',
+    'DEEP_LINKING': True,
+    'SHOW_EXTENSIONS': True,
+    'SHOW_COMMON_EXTENSIONS': True,
+    'SECURITY': [
+        {
+            'SessionAuthentication': []
+        }
+    ]
+}

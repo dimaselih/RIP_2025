@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import ServiceTCO, Calculation, CalculationService, User
+from .models import ServiceTCO, CalculationTCO, CalculationService, User, CustomUser
+from collections import OrderedDict
 
 
 class ServiceTCOSerializer(serializers.ModelSerializer):
@@ -12,6 +13,14 @@ class ServiceTCOSerializer(serializers.ModelSerializer):
             'price', 'price_type', 'image_url', 'is_deleted'
         ]
         read_only_fields = ['id']
+    
+    def get_fields(self):
+        """Метод для возможности передачи только части полей в запросах"""
+        new_fields = OrderedDict()
+        for name, field in super().get_fields().items():
+            field.required = False
+            new_fields[name] = field
+        return new_fields
 
 
 class ServiceTCOListSerializer(serializers.ModelSerializer):
@@ -43,7 +52,7 @@ class CalculationSerializer(serializers.ModelSerializer):
     calculation_services = CalculationServiceSerializer(many=True, read_only=True)
     
     class Meta:
-        model = Calculation
+        model = CalculationTCO
         fields = [
             'id', 'status', 'created_at', 'formed_at', 'completed_at',
             'creator', 'moderator', 'total_cost', 'duration_months',
@@ -53,6 +62,14 @@ class CalculationSerializer(serializers.ModelSerializer):
             'id', 'created_at', 'formed_at', 'completed_at',
             'creator', 'moderator', 'total_cost', 'duration_months'
         ]
+    
+    def get_fields(self):
+        """Метод для возможности передачи только части полей в запросах"""
+        new_fields = OrderedDict()
+        for name, field in super().get_fields().items():
+            field.required = False
+            new_fields[name] = field
+        return new_fields
 
 
 class CalculationListSerializer(serializers.ModelSerializer):
@@ -61,7 +78,7 @@ class CalculationListSerializer(serializers.ModelSerializer):
     moderator_username = serializers.CharField(source='moderator.username', read_only=True)
     
     class Meta:
-        model = Calculation
+        model = CalculationTCO
         fields = [
             'id', 'status', 'created_at', 'formed_at', 'completed_at',
             'creator_username', 'moderator_username', 'total_cost'
@@ -132,3 +149,42 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email', 'is_moderator']
         read_only_fields = ['id', 'username', 'is_moderator']
+
+
+class LoginSerializer(serializers.Serializer):
+    """Сериализатор для авторизации"""
+    email = serializers.EmailField(
+        required=True,
+        help_text='Email пользователя',
+        style={'placeholder': 'admin@cto.com'}
+    )
+    password = serializers.CharField(
+        write_only=True,
+        required=True,
+        help_text='Пароль пользователя',
+        style={'input_type': 'password', 'placeholder': 'admin'}
+    )
+
+class CustomUserSerializer(serializers.Serializer):
+    """Сериализатор для кастомного пользователя согласно методичке"""
+    email = serializers.EmailField(
+        required=True,
+        help_text='Email пользователя',
+        style={'placeholder': 'user@cto.com'}
+    )
+    password = serializers.CharField(
+        write_only=True,
+        required=True,
+        help_text='Пароль пользователя',
+        style={'input_type': 'password', 'placeholder': 'admin'}
+    )
+    is_staff = serializers.BooleanField(
+        default=False,
+        required=False,
+        help_text='Статус сотрудника'
+    )
+    is_superuser = serializers.BooleanField(
+        default=False,
+        required=False,
+        help_text='Статус суперпользователя'
+    )

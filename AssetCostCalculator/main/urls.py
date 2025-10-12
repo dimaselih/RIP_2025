@@ -1,5 +1,35 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework import permissions, routers
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
 from . import views
+
+# Настройки безопасности для Swagger
+security_definitions = {
+    "SessionAuthentication": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sessionid",
+        "description": "Session ID для аутентификации через куки"
+    }
+}
+
+# Создаем router для ViewSet согласно методичке
+router = routers.DefaultRouter()
+router.register(r'user', views.UserViewSet, basename='user')
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Asset Cost Calculator API",
+        default_version='v1',
+        description="API для системы расчета стоимости активов TCO",
+        terms_of_service="https://www.google.com/policies/terms/",
+        contact=openapi.Contact(email="contact@example.com"),
+        license=openapi.License(name="BSD License"),
+    ),
+    public=True,
+    permission_classes=(permissions.AllowAny,),
+)
 
 urlpatterns = [
     # Старые Django views (HTML)
@@ -32,10 +62,16 @@ urlpatterns = [
     path('api/calculation-service/', views.CalculationServiceDeleteAPIView.as_view(), name='api-calculation-service-delete'),
     path('api/calculation-service/update/', views.CalculationServiceUpdateAPIView.as_view(), name='api-calculation-service-update'),
     
-    # Домен "Пользователь" - 5 эндпоинтов
-    path('api/user/register/', views.UserRegistrationAPIView.as_view(), name='api-user-register'),
-    path('api/user/profile/', views.UserProfileAPIView.as_view(), name='api-user-profile'),
-    path('api/user/profile/update/', views.UserProfileUpdateAPIView.as_view(), name='api-user-profile-update'),
-    path('api/user/login/', views.UserLoginAPIView.as_view(), name='api-user-login'),
-    path('api/user/logout/', views.UserLogoutAPIView.as_view(), name='api-user-logout'),
+    # Router для ViewSet и функции авторизации согласно методичке
+    path('api/', include(router.urls)),
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('api/login', views.login_view, name='login'),
+    path('api/logout', views.logout_view, name='logout'),
+    
+    # Дополнительные эндпоинты для пользователя (5 эндпоинтов всего)
+    path('api/user/profile/', views.UserProfileAPIView.as_view(), name='user-profile'),
+    path('api/user/profile/update/', views.UserProfileUpdateAPIView.as_view(), name='user-profile-update'),
+    
+    # Swagger документация
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 ]

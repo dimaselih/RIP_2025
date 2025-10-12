@@ -1,27 +1,36 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import login
-from django.contrib.auth.models import User
+from django.contrib.auth import login, authenticate, logout
 from django.db import transaction, connection
 from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from .models import ServiceTCO, Calculation, CalculationService
+from .models import ServiceTCO, CalculationTCO, CalculationService, CustomUser
 
 # DRF imports
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view
+from rest_framework import viewsets
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework.decorators import authentication_classes, permission_classes
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+# Permissions imports
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from .permissions import IsModerator, IsAdmin, IsModeratorOrAdmin, IsOwnerOrModerator
 from .serializers import (
     ServiceTCOSerializer, ServiceTCOListSerializer, 
-    AddToCartSerializer, ServiceImageUploadSerializer,
-    CalculationSerializer, CalculationListSerializer,
-    CartIconSerializer, FormCalculationSerializer,
-    CompleteCalculationSerializer, CalculationServiceSerializer,
-    UserRegistrationSerializer, UserProfileSerializer
+    ServiceImageUploadSerializer,
+    CalculationTCOSerializer, CalculationTCOListSerializer,
+    CartIconSerializer, FormCalculationTCOSerializer,
+    CompleteCalculationTCOSerializer, CalculationServiceSerializer,
+    UserRegistrationSerializer, UserProfileSerializer, CustomUserSerializer,
+    LoginSerializer
 )
 from .minio_utils import get_minio_client
 import uuid
@@ -30,13 +39,11 @@ import uuid
 def get_constant_creator():
     """Получаем константного пользователя-создателя (singleton)"""
     try:
-        creator = User.objects.get(username='creator')
-    except User.DoesNotExist:
-        creator = User.objects.create_user(
-            username='creator',
-            first_name='Создатель',
-            last_name='Заявок',
-            email='creator@example.com'
+        creator = CustomUser.objects.get(email='creator@cto.com')
+    except CustomUser.DoesNotExist:
+        creator = CustomUser.objects.create_user(
+            email='creator@cto.com',
+            password='creator'
         )
     return creator
 
@@ -44,15 +51,13 @@ def get_constant_creator():
 def get_constant_moderator():
     """Получаем константного пользователя-модератора (singleton)"""
     try:
-        moderator = User.objects.get(username='moderator')
-    except User.DoesNotExist:
-        moderator = User.objects.create_user(
-            username='moderator',
-            first_name='Модератор',
-            last_name='Системы',
-            email='moderator@example.com'
+        moderator = CustomUser.objects.get(email='moderator@cto.com')
+    except CustomUser.DoesNotExist:
+        moderator = CustomUser.objects.create_user(
+            email='moderator@cto.com',
+            password='moderator'
         )
-        moderator.is_moderator = True
+        moderator.is_staff = True
         moderator.save()
     return moderator
 
@@ -60,14 +65,6 @@ def get_constant_moderator():
 # 1. GET - Список услуг с поиском
 def catalog(request):
     """GET: Получение и поиск услуг через ORM"""
-    # Автоматический вход пользователя для демонстрации
-    if not request.user.is_authenticated:
-        try:
-            user = User.objects.get(username='user1')
-            login(request, user)
-        except User.DoesNotExist:
-            pass  # Если пользователь не найден, продолжаем без входа
-    
     search_query = request.GET.get('search_tcoservice', '').strip()
     
     # Получаем услуги из БД (только не удаленные)
@@ -84,11 +81,11 @@ def catalog(request):
     current_calculation = None
     if request.user.is_authenticated:
         try:
-            current_calculation = Calculation.objects.get(
+            current_calculation = CalculationTCO.objects.get(
                 creator=request.user, 
                 status='draft'
             )
-        except Calculation.DoesNotExist:
+        except CalculationTCO.DoesNotExist:
             current_calculation = None
     
     return render(request, 'main/catalog.html', {
@@ -108,7 +105,7 @@ def calculation(request, calculation_id):
     """GET: Просмотр расчета через ORM"""
     # Исключаем удаленные расчеты из поиска
     calculation = get_object_or_404(
-        Calculation, 
+        CalculationTCO, 
         id=calculation_id,
         status__in=['draft', 'formed', 'completed', 'rejected']  # Исключаем 'deleted'
     )
@@ -138,7 +135,7 @@ def add_service_to_calculation(request):
     
     with transaction.atomic():
         # Получаем или создаем черновик расчета
-        calculation, created = Calculation.objects.get_or_create(
+        calculation, created = CalculationTCO.objects.get_or_create(
             creator=request.user,
             status='draft',
             defaults={'status': 'draft'}
@@ -171,11 +168,11 @@ def delete_calculation(request):
     
     # Проверяем, что расчет принадлежит пользователю
     try:
-        calculation = Calculation.objects.get(
+        calculation = CalculationTCO.objects.get(
             id=calculation_id, 
             creator=request.user
         )
-    except Calculation.DoesNotExist:
+    except CalculationTCO.DoesNotExist:
         from django.contrib import messages
         messages.error(request, 'Расчет не найден')
         return redirect('catalog')
@@ -197,7 +194,29 @@ def delete_calculation(request):
 
 class ServiceListAPIView(APIView):
     """GET список услуг с фильтрацией"""
+    permission_classes = [AllowAny]  # Публичный доступ
     
+    @swagger_auto_schema(
+        operation_description="Получение списка услуг с возможностью фильтрации и поиска",
+        manual_parameters=[
+            openapi.Parameter('search_tcoservice', openapi.IN_QUERY, description="Поиск по названию услуги", type=openapi.TYPE_STRING),
+            openapi.Parameter('price_type', openapi.IN_QUERY, description="Фильтр по типу цены", type=openapi.TYPE_STRING, enum=['fixed', 'hourly']),
+        ],
+        responses={
+            200: openapi.Response('Список услуг', examples={
+                'application/json': [
+                    {
+                        'id': 1,
+                        'name': 'Веб-разработка',
+                        'description': 'Создание веб-сайтов',
+                        'price': 50000.00,
+                        'price_type': 'fixed',
+                        'image_url': 'http://127.0.0.1:9000/technical/web.png'
+                    }
+                ]
+            }),
+        }
+    )
     def get(self, request):
         # Получаем параметр поиска
         search = request.query_params.get('search', '')
@@ -219,6 +238,7 @@ class ServiceListAPIView(APIView):
 
 class ServiceDetailAPIView(APIView):
     """GET одна запись услуги"""
+    permission_classes = [AllowAny]  # Публичный доступ для чтения
     
     def get(self, request, pk):
         service = get_object_or_404(ServiceTCO, pk=pk, is_deleted=False)
@@ -226,9 +246,18 @@ class ServiceDetailAPIView(APIView):
         return Response(serializer.data)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ServiceCreateAPIView(APIView):
     """POST добавление услуги (без изображения)"""
+    permission_classes = [IsAuthenticated, IsModeratorOrAdmin]  # Только модераторы и админы
     
+    @swagger_auto_schema(
+        request_body=ServiceTCOSerializer,
+        responses={
+            201: openapi.Response('Услуга успешно создана', ServiceTCOSerializer),
+            400: openapi.Response('Ошибка валидации'),
+        }
+    )
     def post(self, request):
         serializer = ServiceTCOSerializer(data=request.data)
         if serializer.is_valid():
@@ -239,7 +268,16 @@ class ServiceCreateAPIView(APIView):
 
 class ServiceUpdateAPIView(APIView):
     """PUT изменение услуги"""
+    permission_classes = [IsAuthenticated, IsModeratorOrAdmin]  # Только модераторы и админы
     
+    @swagger_auto_schema(
+        request_body=ServiceTCOSerializer,
+        responses={
+            200: openapi.Response('Услуга успешно обновлена', ServiceTCOSerializer),
+            400: openapi.Response('Ошибка валидации'),
+            404: openapi.Response('Услуга не найдена'),
+        }
+    )
     def put(self, request, pk):
         service = get_object_or_404(ServiceTCO, pk=pk, is_deleted=False)
         serializer = ServiceTCOSerializer(service, data=request.data, partial=True)
@@ -251,6 +289,7 @@ class ServiceUpdateAPIView(APIView):
 
 class ServiceDeleteAPIView(APIView):
     """DELETE удаление услуги (логическое удаление + удаление изображения)"""
+    permission_classes = [IsAuthenticated, IsModeratorOrAdmin]  # Только модераторы и админы
     
     def delete(self, request, pk):
         service = get_object_or_404(ServiceTCO, pk=pk, is_deleted=False)
@@ -272,8 +311,10 @@ class ServiceDeleteAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ServiceAddToCartAPIView(APIView):
     """POST добавление услуги в заявку-черновик"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
     def post(self, request, pk):
         # Получаем услугу
@@ -287,11 +328,9 @@ class ServiceAddToCartAPIView(APIView):
         quantity = serializer.validated_data['quantity']
         
         with transaction.atomic():
-            # Получаем константного создателя
-            creator = get_constant_creator()
-            
-            calculation, created = Calculation.objects.get_or_create(
-                creator=creator,
+            # Автозаполнение пользователя из request.user
+            calculation, created = CalculationTCO.objects.get_or_create(
+                creator=request.user,
                 status='draft',
                 defaults={'status': 'draft'}
             )
@@ -317,6 +356,7 @@ class ServiceAddToCartAPIView(APIView):
 
 class ServiceImageUploadAPIView(APIView):
     """POST добавление изображения услуги"""
+    permission_classes = [IsAuthenticated, IsModeratorOrAdmin]  # Только модераторы и админы
     
     def post(self, request, pk):
         service = get_object_or_404(ServiceTCO, pk=pk, is_deleted=False)
@@ -372,14 +412,15 @@ class ServiceImageUploadAPIView(APIView):
 
 # ==================== ДОМЕН "ЗАЯВКА" ====================
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CartIconAPIView(APIView):
     """GET иконки корзины (id заявки-черновика + количество услуг)"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
     def get(self, request):
         try:
-            # Получаем черновик заявки константного создателя
-            creator = get_constant_creator()
-            calculation = Calculation.objects.get(creator=creator, status='draft')
+            # Получаем черновик заявки текущего пользователя
+            calculation = CalculationTCO.objects.get(creator=request.user, status='draft')
             services_count = calculation.calculation_services.count()
             
             serializer = CartIconSerializer({
@@ -388,7 +429,7 @@ class CartIconAPIView(APIView):
             })
             return Response(serializer.data)
             
-        except Calculation.DoesNotExist:
+        except CalculationTCO.DoesNotExist:
             # Если черновика нет, возвращаем пустую корзину
             serializer = CartIconSerializer({
                 'calculation_id': None,
@@ -400,7 +441,25 @@ class CartIconAPIView(APIView):
 
 class CalculationListAPIView(APIView):
     """GET список заявок (кроме удаленных и черновика) с фильтрацией"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
+    @swagger_auto_schema(
+        security=[{'SessionAuthentication': []}],
+        responses={
+            200: openapi.Response('Список заявок', examples={
+                'application/json': [
+                    {
+                        'id': 1,
+                        'status': 'active',
+                        'creator': 'user@cto.com',
+                        'moderator': 'moderator@cto.com'
+                    }
+                ]
+            }),
+            401: openapi.Response('Не авторизован'),
+            403: openapi.Response('Доступ запрещен')
+        }
+    )
     def get(self, request):
         # Получаем параметры фильтрации
         status_filter = request.query_params.get('status', '')
@@ -408,9 +467,17 @@ class CalculationListAPIView(APIView):
         date_to = request.query_params.get('date_to', '')
         
         # Базовый queryset (исключаем удаленные и черновики)
-        calculations = Calculation.objects.exclude(
+        calculations = CalculationTCO.objects.exclude(
             status__in=['deleted', 'draft']
         )
+        
+        # Фильтрация по пользователю
+        if request.user.is_staff or request.user.is_superuser:
+            # Модератор или админ видит все заявки
+            pass
+        else:
+            # Обычный пользователь видит только свои заявки
+            calculations = calculations.filter(creator=request.user)
         
         # Применяем фильтры
         if status_filter:
@@ -423,34 +490,44 @@ class CalculationListAPIView(APIView):
             calculations = calculations.filter(formed_at__date__lte=date_to)
         
         # Сериализуем
-        serializer = CalculationListSerializer(calculations, many=True)
+        serializer = CalculationTCOListSerializer(calculations, many=True)
         return Response(serializer.data)
 
 
 class CalculationDetailAPIView(APIView):
     """GET одна заявка с услугами и картинками"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
     def get(self, request, pk):
         calculation = get_object_or_404(
-            Calculation, 
+            CalculationTCO, 
             pk=pk,
             status__in=['draft', 'formed', 'completed', 'rejected']
         )
-        serializer = CalculationSerializer(calculation)
+        serializer = CalculationTCOSerializer(calculation)
         return Response(serializer.data)
 
 
 class CalculationUpdateAPIView(APIView):
     """PUT изменения полей заявки"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
+    @swagger_auto_schema(
+        request_body=FormCalculationTCOSerializer,
+        responses={
+            200: openapi.Response('Заявка успешно обновлена', CalculationTCOSerializer),
+            400: openapi.Response('Ошибка валидации'),
+            404: openapi.Response('Заявка не найдена'),
+        }
+    )
     def put(self, request, pk):
-        calculation = get_object_or_404(Calculation, pk=pk, status='draft')
+        calculation = get_object_or_404(CalculationTCO, pk=pk, status='draft')
         
         # Разрешаем изменять только определенные поля
         allowed_fields = ['start_date', 'end_date']
         data = {k: v for k, v in request.data.items() if k in allowed_fields}
         
-        serializer = CalculationSerializer(calculation, data=data, partial=True)
+        serializer = CalculationTCOSerializer(calculation, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -459,12 +536,21 @@ class CalculationUpdateAPIView(APIView):
 
 class CalculationFormAPIView(APIView):
     """PUT сформировать заявку (проверка обязательных полей)"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
+    @swagger_auto_schema(
+        request_body=FormCalculationTCOSerializer,
+        responses={
+            200: openapi.Response('Заявка успешно сформирована', CalculationTCOSerializer),
+            400: openapi.Response('Ошибка валидации'),
+            404: openapi.Response('Заявка не найдена'),
+        }
+    )
     def put(self, request, pk):
-        calculation = get_object_or_404(Calculation, pk=pk, status='draft')
+        calculation = get_object_or_404(CalculationTCO, pk=pk, status='draft')
         
         # Валидируем данные
-        serializer = FormCalculationSerializer(data=request.data)
+        serializer = FormCalculationTCOSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
@@ -485,23 +571,39 @@ class CalculationFormAPIView(APIView):
         return Response(response_serializer.data)
 
 
-class CalculationCompleteAPIView(APIView):
+@method_decorator(csrf_exempt, name='dispatch')
+class CalculationTCOCompleteAPIView(APIView):
     """PUT завершить/отклонить заявку (вычисление стоимости)"""
+    permission_classes = [IsModerator]  # Только модераторы
     
+    @swagger_auto_schema(
+        request_body=CompleteCalculationTCOSerializer,
+        security=[{'SessionAuthentication': []}],
+        responses={
+            200: openapi.Response('Заявка успешно завершена', CalculationTCOSerializer),
+            400: openapi.Response('Ошибка валидации'),
+            403: openapi.Response('Доступ запрещен - требуется роль модератора'),
+            404: openapi.Response('Заявка не найдена'),
+        }
+    )
     def put(self, request, pk):
-        calculation = get_object_or_404(Calculation, pk=pk, status='formed')
+        # Отладочная информация
+        print(f"[COMPLETE] User: {request.user}")
+        print(f"[COMPLETE] Is authenticated: {request.user.is_authenticated}")
+        print(f"[COMPLETE] Is staff: {request.user.is_staff}")
+        print(f"[COMPLETE] Is superuser: {request.user.is_superuser}")
+        
+        calculation = get_object_or_404(CalculationTCO, pk=pk, status='formed')
         
         # Валидируем данные
-        serializer = CompleteCalculationSerializer(data=request.data)
+        serializer = CompleteCalculationTCOSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         action = serializer.validated_data['action']
         moderator_comment = serializer.validated_data.get('moderator_comment', '')
         
-        # Получаем константного модератора
-        moderator = get_constant_moderator()
-        
+        # Автозаполнение модератора из request.user (текущий авторизованный пользователь)
         if action == 'complete':
             # Вычисляем стоимость и срок эксплуатации
             total_cost, duration_months = self._calculate_cost_and_duration(calculation)
@@ -512,11 +614,11 @@ class CalculationCompleteAPIView(APIView):
         else:  # reject
             calculation.status = 'rejected'
         
-        calculation.moderator = moderator
+        calculation.moderator = request.user
         calculation.completed_at = timezone.now()
         calculation.save()
         
-        response_serializer = CalculationSerializer(calculation)
+        response_serializer = CalculationTCOSerializer(calculation)
         return Response(response_serializer.data)
     
     def _calculate_cost_and_duration(self, calculation):
@@ -554,9 +656,10 @@ class CalculationCompleteAPIView(APIView):
 
 class CalculationDeleteAPIView(APIView):
     """DELETE удаление заявки (логическое удаление)"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
     def delete(self, request, pk):
-        calculation = get_object_or_404(Calculation, pk=pk, status='draft')
+        calculation = get_object_or_404(CalculationTCO, pk=pk, status='draft')
         
         # Логическое удаление
         calculation.status = 'deleted'
@@ -569,6 +672,7 @@ class CalculationDeleteAPIView(APIView):
 
 class CalculationServiceDeleteAPIView(APIView):
     """DELETE удаление услуги из заявки-черновика"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
     def delete(self, request):
         # Получаем параметры из query string
@@ -582,9 +686,9 @@ class CalculationServiceDeleteAPIView(APIView):
         
         try:
             # Получаем заявку-черновик константного создателя
-            calculation = Calculation.objects.get(
+            calculation = CalculationTCO.objects.get(
                 id=calculation_id,
-                creator=get_constant_creator(),
+                creator=request.user,
                 status='draft'
             )
             
@@ -604,7 +708,7 @@ class CalculationServiceDeleteAPIView(APIView):
                 'message': f'Услуга "{service.name}" удалена из корзины'
             }, status=status.HTTP_200_OK)
             
-        except Calculation.DoesNotExist:
+        except CalculationTCO.DoesNotExist:
             return Response({
                 'error': 'Заявка-черновик не найдена'
             }, status=status.HTTP_404_NOT_FOUND)
@@ -616,6 +720,7 @@ class CalculationServiceDeleteAPIView(APIView):
 
 class CalculationServiceUpdateAPIView(APIView):
     """PUT изменение количества/порядка/значения в заявке-черновике"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
     def put(self, request):
         # Получаем параметры из query string
@@ -629,9 +734,9 @@ class CalculationServiceUpdateAPIView(APIView):
         
         try:
             # Получаем заявку-черновик константного создателя
-            calculation = Calculation.objects.get(
+            calculation = CalculationTCO.objects.get(
                 id=calculation_id,
-                creator=get_constant_creator(),
+                creator=request.user,
                 status='draft'
             )
             
@@ -679,7 +784,7 @@ class CalculationServiceUpdateAPIView(APIView):
             response_serializer = CalculationServiceSerializer(calculation_service)
             return Response(response_serializer.data)
             
-        except Calculation.DoesNotExist:
+        except CalculationTCO.DoesNotExist:
             return Response({
                 'error': 'Заявка-черновик не найдена'
             }, status=status.HTTP_404_NOT_FOUND)
@@ -691,9 +796,108 @@ class CalculationServiceUpdateAPIView(APIView):
 
 # ==================== ДОМЕН "ПОЛЬЗОВАТЕЛЬ" ====================
 
+@method_decorator(csrf_exempt, name='dispatch')
+class UserViewSet(viewsets.ModelViewSet):
+    """Класс, описывающий методы работы с пользователями
+    Осуществляет связь с таблицей пользователей в базе данных
+    """
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomUserSerializer
+    model_class = CustomUser
+    
+    def get_permissions(self):
+        """
+        Разные permissions для разных действий:
+        - create (POST) - доступно всем (публичная регистрация)
+        - list, retrieve, update, partial_update, destroy - только для администраторов
+        """
+        if self.action == 'create':
+            return [AllowAny()]
+        return [IsAuthenticated(), IsAdmin()]
+
+    @swagger_auto_schema(
+        request_body=CustomUserSerializer,
+        security=[],
+        responses={
+            201: openapi.Response(
+                'Успешная регистрация', 
+                examples={
+                    'application/json': {
+                        'status': 'ok',
+                        'user_id': 1
+                    }
+                }
+            ),
+            400: openapi.Response(
+                'Ошибка регистрации', 
+                examples={
+                    'application/json': {
+                        'status': 'error',
+                        'error': 'validation failed'
+                    }
+                }
+            )
+        }
+    )
+
+    def create(self, request):
+        """
+        Функция регистрации новых пользователей
+        Если пользователя c указанным в request email ещё нет, в БД будет добавлен новый пользователь.
+        """
+        # Отладочная информация
+        print(f"Request data: {request.data}")
+        
+        serializer = self.serializer_class(data=request.data)
+        print(f"Serializer is valid: {serializer.is_valid()}")
+        if not serializer.is_valid():
+            print(f"Serializer errors: {serializer.errors}")
+            return Response({'status': 'Error', 'error': serializer.errors}, status=400)
+        
+        # Проверяем, существует ли пользователь
+        email = serializer.validated_data['email']
+        if self.model_class.objects.filter(email=email).exists():
+            return Response({'status': 'Exist'}, status=400)
+        
+        # Создаем пользователя
+        self.model_class.objects.create_user(
+            email=email,
+            password=serializer.validated_data['password'],
+            is_superuser=serializer.validated_data.get('is_superuser', False),
+            is_staff=serializer.validated_data.get('is_staff', False)
+        )
+        return Response({'status': 'Success'}, status=200)
+
+
 class UserRegistrationAPIView(APIView):
     """POST регистрация нового пользователя"""
+    permission_classes = [AllowAny]  # Публичный доступ
     
+    @swagger_auto_schema(
+        operation_description="Регистрация нового пользователя в системе",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['username', 'first_name', 'last_name', 'email', 'password', 'password_confirm'],
+            properties={
+                'username': openapi.Schema(type=openapi.TYPE_STRING, description='Имя пользователя'),
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING, description='Имя'),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING, description='Фамилия'),
+                'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL, description='Email'),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Пароль'),
+                'password_confirm': openapi.Schema(type=openapi.TYPE_STRING, description='Подтверждение пароля'),
+            }
+        ),
+        responses={
+            201: openapi.Response('Пользователь успешно зарегистрирован', examples={
+                'application/json': {
+                    'message': 'Пользователь успешно зарегистрирован',
+                    'user_id': 1,
+                    'username': 'newuser'
+                }
+            }),
+            400: openapi.Response('Ошибка валидации'),
+        }
+    )
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
@@ -717,6 +921,7 @@ class UserRegistrationAPIView(APIView):
 
 class UserProfileAPIView(APIView):
     """GET профиль пользователя после аутентификации"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
     def get(self, request):
         if not request.user.is_authenticated:
@@ -728,26 +933,75 @@ class UserProfileAPIView(APIView):
         return Response(serializer.data)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserProfileUpdateAPIView(APIView):
     """PUT изменение профиля пользователя"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
+    @swagger_auto_schema(
+        request_body=CustomUserSerializer,
+        responses={
+            200: openapi.Response('Профиль успешно обновлен', CustomUserSerializer),
+            400: openapi.Response('Ошибка валидации'),
+            401: openapi.Response('Пользователь не аутентифицирован'),
+        }
+    )
     def put(self, request):
         if not request.user.is_authenticated:
             return Response({
                 'error': 'Пользователь не аутентифицирован'
             }, status=status.HTTP_401_UNAUTHORIZED)
         
-        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        serializer = CustomUserSerializer(data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            # Обновляем поля пользователя
+            user = request.user
+            if 'email' in serializer.validated_data:
+                user.email = serializer.validated_data['email']
+            if 'is_staff' in serializer.validated_data:
+                user.is_staff = serializer.validated_data['is_staff']
+            if 'is_superuser' in serializer.validated_data:
+                user.is_superuser = serializer.validated_data['is_superuser']
+            if 'password' in serializer.validated_data:
+                user.set_password(serializer.validated_data['password'])
+            
+            user.save()
+            return Response({
+                'email': user.email,
+                'is_staff': user.is_staff,
+                'is_superuser': user.is_superuser
+            })
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserLoginAPIView(APIView):
     """POST аутентификация пользователя"""
+    permission_classes = [AllowAny]  # Публичный доступ
     
+    @swagger_auto_schema(
+        operation_description="Аутентификация пользователя в системе",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['username', 'password'],
+            properties={
+                'username': openapi.Schema(type=openapi.TYPE_STRING, description='Имя пользователя'),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Пароль'),
+            }
+        ),
+        responses={
+            200: openapi.Response('Успешная аутентификация', examples={
+                'application/json': {
+                    'message': 'Успешная аутентификация',
+                    'user_id': 1,
+                    'username': 'testuser',
+                    'is_moderator': False
+                }
+            }),
+            400: openapi.Response('Ошибка валидации'),
+            401: openapi.Response('Неверные учетные данные'),
+        }
+    )
     def post(self, request):
         from django.contrib.auth import authenticate, login
         
@@ -781,6 +1035,7 @@ class UserLoginAPIView(APIView):
 
 class UserLogoutAPIView(APIView):
     """POST деавторизация пользователя"""
+    permission_classes = [IsAuthenticated]  # Требует аутентификации
     
     def post(self, request):
         if not request.user.is_authenticated:
@@ -794,4 +1049,89 @@ class UserLogoutAPIView(APIView):
         return Response({
             'message': 'Успешный выход из системы'
         })
+
+
+# Функции авторизации согласно методичке
+@swagger_auto_schema(
+    method='post',
+    request_body=LoginSerializer,
+    security=[],
+    responses={
+        200: openapi.Response(
+            'Успешная авторизация', 
+            examples={
+                'application/json': {
+                    'status': 'ok'
+                }
+            }
+        ),
+        400: openapi.Response(
+            'Ошибка авторизации', 
+            examples={
+                'application/json': {
+                    'status': 'error',
+                    'error': 'login failed'
+                }
+            }
+        )
+    },
+    operation_description="Авторизация пользователя в системе",
+    operation_summary="Вход в систему"
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@authentication_classes([])
+@csrf_exempt
+def login_view(request):
+    """Функция авторизации пользователей согласно методичке"""
+    # Отладочная информация
+    print(f"Request data: {request.data}")
+    print(f"Request POST: {request.POST}")
+    print(f"Content-Type: {request.content_type}")
+    
+    email = request.POST.get("email") or request.data.get("email")
+    password = request.POST.get("password") or request.data.get("password")
+    
+    print(f"Email: {email}")
+    print(f"Password: {password}")
+    
+    if not email or not password:
+        print("Missing email or password")
+        return Response({'status': 'error', 'error': 'email and password required'}, status=400)
+        
+    user = authenticate(request, email=email, password=password)
+    print(f"User: {user}")
+    
+    if user is not None:
+        login(request, user)
+        response = Response({'status': 'ok', 'message': 'Успешная авторизация'})
+        # Явно устанавливаем куку sessionid для Swagger UI
+        response.set_cookie(
+            'sessionid',
+            request.session.session_key,
+            max_age=1209600,  # 2 недели
+            httponly=True,
+            samesite='Lax'
+        )
+        return response
+    else:
+        return Response({'status': 'error', 'error': 'login failed'}, status=400)
+
+
+@api_view(['POST'])
+@swagger_auto_schema(
+    security=[{'SessionAuthentication': []}],
+    responses={
+        200: openapi.Response('Успешный выход', examples={
+            'application/json': {
+                'status': 'Success'
+            }
+        })
+    }
+)
+@csrf_exempt
+def logout_view(request):
+    """Функция выхода из системы согласно методичке"""
+    logout(request._request)
+    return Response({'status': 'Success'})
 
