@@ -70,7 +70,7 @@ class ServiceTCO(models.Model):
         return self.name
 
 
-class Calculation(models.Model):
+class CalculationTCO(models.Model):
     """Таблица расчетов"""
     
     STATUS_CHOICES = [
@@ -169,7 +169,7 @@ class CalculationService(models.Model):
     """Таблица м-м расчеты-услуги (составной уникальный ключ)"""
     
     calculation = models.ForeignKey(
-        Calculation,
+        CalculationTCO,
         on_delete=models.PROTECT,
         related_name='calculation_services',
         verbose_name="Расчет"

@@ -142,7 +142,7 @@ def add_service_to_calculation(request):
         )
         
         # Добавляем или обновляем услугу в расчете
-        calculation_service, created = CalculationService.objects.get_or_create(
+        calculation_service, created = CalculationTCOService.objects.get_or_create(
             calculation=calculation,
             service=service,
             defaults={'quantity': quantity}
@@ -336,7 +336,7 @@ class ServiceAddToCartAPIView(APIView):
             )
             
             # Добавляем или обновляем услугу в заявке
-            calculation_service, created = CalculationService.objects.get_or_create(
+            calculation_service, created = CalculationTCOService.objects.get_or_create(
                 calculation=calculation,
                 service=service,
                 defaults={'quantity': quantity}
@@ -439,7 +439,7 @@ class CartIconAPIView(APIView):
     
 
 
-class CalculationListAPIView(APIView):
+class CalculationTCOListAPIView(APIView):
     """GET список заявок (кроме удаленных и черновика) с фильтрацией"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
     
@@ -494,7 +494,7 @@ class CalculationListAPIView(APIView):
         return Response(serializer.data)
 
 
-class CalculationDetailAPIView(APIView):
+class CalculationTCODetailAPIView(APIView):
     """GET одна заявка с услугами и картинками"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
     
@@ -508,7 +508,7 @@ class CalculationDetailAPIView(APIView):
         return Response(serializer.data)
 
 
-class CalculationUpdateAPIView(APIView):
+class CalculationTCOUpdateAPIView(APIView):
     """PUT изменения полей заявки"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
     
@@ -534,7 +534,7 @@ class CalculationUpdateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CalculationFormAPIView(APIView):
+class CalculationTCOFormAPIView(APIView):
     """PUT сформировать заявку (проверка обязательных полей)"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
     
@@ -567,7 +567,7 @@ class CalculationFormAPIView(APIView):
         calculation.formed_at = timezone.now()
         calculation.save()
         
-        response_serializer = CalculationSerializer(calculation)
+        response_serializer = CalculationTCOSerializer(calculation)
         return Response(response_serializer.data)
 
 
@@ -654,7 +654,7 @@ class CalculationTCOCompleteAPIView(APIView):
     
 
 
-class CalculationDeleteAPIView(APIView):
+class CalculationTCODeleteAPIView(APIView):
     """DELETE удаление заявки (логическое удаление)"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
     
@@ -670,7 +670,7 @@ class CalculationDeleteAPIView(APIView):
 
 # ==================== ДОМЕН "М-М" (КОРЗИНА) ====================
 
-class CalculationServiceDeleteAPIView(APIView):
+class CalculationTCOServiceDeleteAPIView(APIView):
     """DELETE удаление услуги из заявки-черновика"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
     
@@ -697,7 +697,7 @@ class CalculationServiceDeleteAPIView(APIView):
             
             # Удаляем связь
             calculation_service = get_object_or_404(
-                CalculationService,
+                CalculationTCOService,
                 calculation=calculation,
                 service=service
             )
@@ -718,7 +718,7 @@ class CalculationServiceDeleteAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class CalculationServiceUpdateAPIView(APIView):
+class CalculationTCOServiceUpdateAPIView(APIView):
     """PUT изменение количества/порядка/значения в заявке-черновике"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
     
@@ -745,7 +745,7 @@ class CalculationServiceUpdateAPIView(APIView):
             
             # Получаем связь
             calculation_service = get_object_or_404(
-                CalculationService,
+                CalculationTCOService,
                 calculation=calculation,
                 service=service
             )

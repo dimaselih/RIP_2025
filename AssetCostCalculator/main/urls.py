@@ -51,16 +51,16 @@ urlpatterns = [
     
     # Домен "Заявка" (7 эндпоинтов)
     path('api/cart/', views.CartIconAPIView.as_view(), name='api-cart-icon'),
-    path('api/calculation/', views.CalculationListAPIView.as_view(), name='api-calculation-list'),
-    path('api/calculation/<int:pk>/', views.CalculationDetailAPIView.as_view(), name='api-calculation-detail'),
-    path('api/calculation/<int:pk>/update/', views.CalculationUpdateAPIView.as_view(), name='api-calculation-update'),
-    path('api/calculation/<int:pk>/form/', views.CalculationFormAPIView.as_view(), name='api-calculation-form'),
-    path('api/calculation/<int:pk>/complete/', views.CalculationCompleteAPIView.as_view(), name='api-calculation-complete'),
-    path('api/calculation/<int:pk>/delete/', views.CalculationDeleteAPIView.as_view(), name='api-calculation-delete'),
+    path('api/calculation/', views.CalculationTCOListAPIView.as_view(), name='api-calculation-list'),
+    path('api/calculation/<int:pk>/', views.CalculationTCODetailAPIView.as_view(), name='api-calculation-detail'),
+    path('api/calculation/<int:pk>/update/', views.CalculationTCOUpdateAPIView.as_view(), name='api-calculation-update'),
+    path('api/calculation/<int:pk>/form/', views.CalculationTCOFormAPIView.as_view(), name='api-calculation-form'),
+    path('api/calculation/<int:pk>/complete/', views.CalculationTCOCompleteAPIView.as_view(), name='api-calculation-complete'),
+    path('api/calculation/<int:pk>/delete/', views.CalculationTCODeleteAPIView.as_view(), name='api-calculation-delete'),
     
     # Домен "М-М" (корзина) - 2 эндпоинта
-    path('api/calculation-service/', views.CalculationServiceDeleteAPIView.as_view(), name='api-calculation-service-delete'),
-    path('api/calculation-service/update/', views.CalculationServiceUpdateAPIView.as_view(), name='api-calculation-service-update'),
+    path('api/calculation-service/', views.CalculationTCOServiceDeleteAPIView.as_view(), name='api-calculation-service-delete'),
+    path('api/calculation-service/update/', views.CalculationTCOServiceUpdateAPIView.as_view(), name='api-calculation-service-update'),
     
     # Router для ViewSet и функции авторизации согласно методичке
     path('api/', include(router.urls)),

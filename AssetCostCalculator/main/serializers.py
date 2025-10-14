@@ -45,7 +45,7 @@ class CalculationServiceSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
-class CalculationSerializer(serializers.ModelSerializer):
+class CalculationTCOSerializer(serializers.ModelSerializer):
     """Сериализатор для заявок"""
     creator = serializers.StringRelatedField(read_only=True)
     moderator = serializers.StringRelatedField(read_only=True)
@@ -72,7 +72,7 @@ class CalculationSerializer(serializers.ModelSerializer):
         return new_fields
 
 
-class CalculationListSerializer(serializers.ModelSerializer):
+class CalculationTCOListSerializer(serializers.ModelSerializer):
     """Сериализатор для списка заявок (без деталей)"""
     creator_username = serializers.CharField(source='creator.username', read_only=True)
     moderator_username = serializers.CharField(source='moderator.username', read_only=True)
@@ -104,13 +104,13 @@ class UpdateCartItemSerializer(serializers.ModelSerializer):
         fields = ['quantity']
 
 
-class FormCalculationSerializer(serializers.Serializer):
+class FormCalculationTCOSerializer(serializers.Serializer):
     """Сериализатор для формирования заявки"""
     start_date = serializers.DateField()
     end_date = serializers.DateField()
 
 
-class CompleteCalculationSerializer(serializers.Serializer):
+class CompleteCalculationTCOSerializer(serializers.Serializer):
     """Сериализатор для завершения заявки"""
     action = serializers.ChoiceField(choices=['complete', 'reject'])
     moderator_comment = serializers.CharField(required=False, allow_blank=True)
