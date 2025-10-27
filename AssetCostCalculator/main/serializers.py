@@ -24,13 +24,13 @@ class ServiceTCOSerializer(serializers.ModelSerializer):
 
 
 class ServiceTCOListSerializer(serializers.ModelSerializer):
-    """Сериализатор для списка услуг (без полного описания)"""
+    """Сериализатор для списка услуг"""
     
     class Meta:
         model = ServiceTCO
         fields = [
-            'id', 'name', 'description', 'price', 
-            'price_type', 'image_url'
+            'id', 'name', 'description', 'fullDescription', 'price', 
+            'price_type', 'image_url', 'is_deleted'
         ]
 
 

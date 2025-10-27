@@ -199,8 +199,9 @@ class ServiceListAPIView(APIView):
     @swagger_auto_schema(
         operation_description="Получение списка услуг с возможностью фильтрации и поиска",
         manual_parameters=[
-            openapi.Parameter('search_tcoservice', openapi.IN_QUERY, description="Поиск по названию услуги", type=openapi.TYPE_STRING),
-            openapi.Parameter('price_type', openapi.IN_QUERY, description="Фильтр по типу цены", type=openapi.TYPE_STRING, enum=['fixed', 'hourly']),
+            openapi.Parameter('search', openapi.IN_QUERY, description="Поиск по названию услуги", type=openapi.TYPE_STRING),
+            openapi.Parameter('price_from', openapi.IN_QUERY, description="Минимальная цена", type=openapi.TYPE_NUMBER),
+            openapi.Parameter('price_to', openapi.IN_QUERY, description="Максимальная цена", type=openapi.TYPE_NUMBER),
         ],
         responses={
             200: openapi.Response('Список услуг', examples={
@@ -218,8 +219,10 @@ class ServiceListAPIView(APIView):
         }
     )
     def get(self, request):
-        # Получаем параметр поиска
+        # Получаем параметры поиска и фильтрации
         search = request.query_params.get('search', '')
+        price_from = request.query_params.get('price_from')
+        price_to = request.query_params.get('price_to')
         
         # Базовый queryset (только не удаленные)
         services = ServiceTCO.objects.filter(is_deleted=False)
@@ -230,6 +233,12 @@ class ServiceListAPIView(APIView):
                 Q(name__icontains=search) | 
                 Q(description__icontains=search)
             )
+        
+        # Фильтрация по цене
+        if price_from:
+            services = services.filter(price__gte=float(price_from))
+        if price_to:
+            services = services.filter(price__lte=float(price_to))
         
         # Сериализуем
         serializer = ServiceTCOListSerializer(services, many=True)

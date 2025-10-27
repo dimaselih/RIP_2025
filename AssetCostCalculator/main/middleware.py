@@ -20,3 +20,21 @@ class DisableCSRFForAPI(MiddlewareMixin):
             return None
 
 
+class SimpleCorsMiddleware(MiddlewareMixin):
+    """Простой CORS middleware для React разработки"""
+    
+    def process_response(self, request, response):
+        # Разрешаем запросы с React приложения
+        if request.path.startswith('/api/'):
+            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+            response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-CSRFToken'
+            response['Access-Control-Allow-Credentials'] = 'true'
+        
+        # Обрабатываем preflight запросы
+        if request.method == 'OPTIONS':
+            response.status_code = 200
+        
+        return response
+
+

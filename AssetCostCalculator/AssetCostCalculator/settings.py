@@ -47,6 +47,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'main.middleware.DisableCSRFForAPI',  # Отключаем CSRF для API
+    'main.middleware.SimpleCorsMiddleware',  # CORS для работы с React
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -54,7 +55,15 @@ MIDDLEWARE = [
 ]
 
 # Отключаем CSRF для API эндпоинтов
-CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000']
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000', 
+    'http://localhost:8000',
+    'http://127.0.0.1:3000',
+    'http://localhost:3000'
+]
+
+# CORS настройки (не используем отдельный middleware, т.к. прокси в React настроен)
+# Для production можно добавить django-cors-headers если потребуется
 
 # Дополнительные настройки CSRF
 CSRF_COOKIE_SECURE = False
