@@ -41,26 +41,30 @@ urlpatterns = [
     
     # ==================== API URLS ====================
     # Домен "Услуга" (7 эндпоинтов)
-    path('api/servicetco/', views.ServiceListAPIView.as_view(), name='api-servicetco-list'),
-    path('api/servicetco/<int:pk>/', views.ServiceDetailAPIView.as_view(), name='api-servicetco-detail'),
-    path('api/servicetco/create/', views.ServiceCreateAPIView.as_view(), name='api-servicetco-create'),
-    path('api/servicetco/<int:pk>/update/', views.ServiceUpdateAPIView.as_view(), name='api-servicetco-update'),
-    path('api/servicetco/<int:pk>/delete/', views.ServiceDeleteAPIView.as_view(), name='api-servicetco-delete'),
-    path('api/servicetco/<int:pk>/add-to-cart/', views.ServiceAddToCartAPIView.as_view(), name='api-servicetco-add-to-cart'),
-    path('api/servicetco/<int:pk>/image/', views.ServiceImageUploadAPIView.as_view(), name='api-servicetco-image'),
+    path('api/service_tco/', views.ServiceListAPIView.as_view(), name='api-servicetco-list'),
+    path('api/service_tco/<int:pk>/', views.ServiceDetailAPIView.as_view(), name='api-servicetco-detail'),
+    path('api/service_tco/create/', views.ServiceCreateAPIView.as_view(), name='api-servicetco-create'),
+    path('api/service_tco/<int:pk>/update/', views.ServiceUpdateAPIView.as_view(), name='api-servicetco-update'),
+    path('api/service_tco/<int:pk>/delete/', views.ServiceDeleteAPIView.as_view(), name='api-servicetco-delete'),
+    path('api/service_tco/<int:pk>/add-to-cart/', views.ServiceAddToCartAPIView.as_view(), name='api-servicetco-add-to-cart'),
+    path('api/service_tco/<int:pk>/image/', views.ServiceImageUploadAPIView.as_view(), name='api-servicetco-image'),
     
     # Домен "Заявка" (7 эндпоинтов)
-    path('api/cart/', views.CartIconAPIView.as_view(), name='api-cart-icon'),
-    path('api/calculation/', views.CalculationTCOListAPIView.as_view(), name='api-calculation-list'),
-    path('api/calculation/<int:pk>/', views.CalculationTCODetailAPIView.as_view(), name='api-calculation-detail'),
-    path('api/calculation/<int:pk>/update/', views.CalculationTCOUpdateAPIView.as_view(), name='api-calculation-update'),
-    path('api/calculation/<int:pk>/form/', views.CalculationTCOFormAPIView.as_view(), name='api-calculation-form'),
-    path('api/calculation/<int:pk>/complete/', views.CalculationTCOCompleteAPIView.as_view(), name='api-calculation-complete'),
-    path('api/calculation/<int:pk>/delete/', views.CalculationTCODeleteAPIView.as_view(), name='api-calculation-delete'),
+    path('api/cart_tco/', views.CartIconAPIView.as_view(), name='api-cart-icon'),
+    path('api/calculation_tco/', views.CalculationTCOListAPIView.as_view(), name='api-calculation-list'),
+    path('api/calculation_tco/<int:pk>/', views.CalculationTCODetailAPIView.as_view(), name='api-calculation-detail'),
+    path('api/calculation_tco/<int:pk>/update/', views.CalculationTCOUpdateAPIView.as_view(), name='api-calculation-update'),
+    path('api/calculation_tco/<int:pk>/form/', views.CalculationTCOFormAPIView.as_view(), name='api-calculation-form'),
+    path('api/calculation_tco/<int:pk>/complete/', views.CalculationTCOCompleteAPIView.as_view(), name='api-calculation-complete'),
+    path('api/calculation_tco/<int:pk>/delete/', views.CalculationTCODeleteAPIView.as_view(), name='api-calculation-delete'),
     
     # Домен "М-М" (корзина) - 2 эндпоинта
     path('api/calculation-service/', views.CalculationTCOServiceDeleteAPIView.as_view(), name='api-calculation-service-delete'),
     path('api/calculation-service/update/', views.CalculationTCOServiceUpdateAPIView.as_view(), name='api-calculation-service-update'),
+    
+    # Дополнительные эндпоинты для пользователя (должны быть ПЕРЕД router.urls)
+    path('api/user/profile/', views.UserProfileAPIView.as_view(), name='user-profile'),
+    path('api/user/profile/update/', views.UserProfileUpdateAPIView.as_view(), name='user-profile-update'),
     
     # Router для ViewSet и функции авторизации согласно методичке
     path('api/', include(router.urls)),
@@ -68,10 +72,8 @@ urlpatterns = [
     path('api/login', views.login_view, name='login'),
     path('api/logout', views.logout_view, name='logout'),
     
-    # Дополнительные эндпоинты для пользователя (5 эндпоинтов всего)
-    path('api/user/profile/', views.UserProfileAPIView.as_view(), name='user-profile'),
-    path('api/user/profile/update/', views.UserProfileUpdateAPIView.as_view(), name='user-profile-update'),
-    
     # Swagger документация
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+    path('swagger.yaml', schema_view.without_ui(cache_timeout=0), name='schema-yaml'),
 ]

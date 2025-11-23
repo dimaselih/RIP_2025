@@ -36,13 +36,14 @@ class ServiceTCOListSerializer(serializers.ModelSerializer):
 
 class CalculationServiceSerializer(serializers.ModelSerializer):
     """Сериализатор для связи м-м (услуги в заявке)"""
-    service = ServiceTCOListSerializer(read_only=True)
-    service_id = serializers.IntegerField(write_only=True)
+    service_details = ServiceTCOListSerializer(source='service', read_only=True)
+    service_id = serializers.IntegerField(write_only=True, required=False)
+    calculation_id = serializers.IntegerField(write_only=True, required=False)
     
     class Meta:
         model = CalculationService
-        fields = ['id', 'service', 'service_id', 'quantity']
-        read_only_fields = ['id']
+        fields = ['id', 'calculation', 'service', 'service_details', 'service_id', 'calculation_id', 'quantity']
+        read_only_fields = ['id', 'calculation', 'service']
 
 
 class CalculationTCOSerializer(serializers.ModelSerializer):
@@ -146,9 +147,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """Сериализатор для профиля пользователя"""
     
     class Meta:
-        model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'is_moderator']
-        read_only_fields = ['id', 'username', 'is_moderator']
+        model = CustomUser
+        fields = ['id', 'email', 'is_staff', 'is_superuser', 'is_active', 'date_joined']
+        read_only_fields = ['id', 'date_joined']
 
 
 class LoginSerializer(serializers.Serializer):

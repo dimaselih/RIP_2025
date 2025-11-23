@@ -30,7 +30,7 @@ from .serializers import (
     CartIconSerializer, FormCalculationTCOSerializer,
     CompleteCalculationTCOSerializer, CalculationServiceSerializer,
     UserRegistrationSerializer, UserProfileSerializer, CustomUserSerializer,
-    LoginSerializer
+    LoginSerializer, AddToCartSerializer
 )
 from .minio_utils import get_minio_client
 import uuid
@@ -142,7 +142,7 @@ def add_service_to_calculation(request):
         )
         
         # Добавляем или обновляем услугу в расчете
-        calculation_service, created = CalculationTCOService.objects.get_or_create(
+        calculation_service, created = CalculationService.objects.get_or_create(
             calculation=calculation,
             service=service,
             defaults={'quantity': quantity}
@@ -345,7 +345,7 @@ class ServiceAddToCartAPIView(APIView):
             )
             
             # Добавляем или обновляем услугу в заявке
-            calculation_service, created = CalculationTCOService.objects.get_or_create(
+            calculation_service, created = CalculationService.objects.get_or_create(
                 calculation=calculation,
                 service=service,
                 defaults={'quantity': quantity}
@@ -448,8 +448,9 @@ class CartIconAPIView(APIView):
     
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CalculationTCOListAPIView(APIView):
-    """GET список заявок (кроме удаленных и черновика) с фильтрацией"""
+    """GET список заявок (кроме удаленных) с фильтрацией по статусу и датам"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
     
     @swagger_auto_schema(
@@ -475,10 +476,8 @@ class CalculationTCOListAPIView(APIView):
         date_from = request.query_params.get('date_from', '')
         date_to = request.query_params.get('date_to', '')
         
-        # Базовый queryset (исключаем удаленные и черновики)
-        calculations = CalculationTCO.objects.exclude(
-            status__in=['deleted', 'draft']
-        )
+        # Базовый queryset (исключаем только удаленные)
+        calculations = CalculationTCO.objects.exclude(status='deleted')
         
         # Фильтрация по пользователю
         if request.user.is_staff or request.user.is_superuser:
@@ -493,16 +492,22 @@ class CalculationTCOListAPIView(APIView):
             calculations = calculations.filter(status=status_filter)
         
         if date_from:
-            calculations = calculations.filter(formed_at__date__gte=date_from)
+            # Фильтруем по дате начала обслуживания
+            calculations = calculations.filter(start_date__gte=date_from)
         
         if date_to:
-            calculations = calculations.filter(formed_at__date__lte=date_to)
+            # Фильтруем по дате окончания обслуживания
+            calculations = calculations.filter(end_date__lte=date_to)
+        
+        # Сортируем по дате создания (новые сверху)
+        calculations = calculations.order_by('-created_at')
         
         # Сериализуем
         serializer = CalculationTCOListSerializer(calculations, many=True)
         return Response(serializer.data)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CalculationTCODetailAPIView(APIView):
     """GET одна заявка с услугами и картинками"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
@@ -517,6 +522,7 @@ class CalculationTCODetailAPIView(APIView):
         return Response(serializer.data)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CalculationTCOUpdateAPIView(APIView):
     """PUT изменения полей заявки"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
@@ -543,6 +549,7 @@ class CalculationTCOUpdateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CalculationTCOFormAPIView(APIView):
     """PUT сформировать заявку (проверка обязательных полей)"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
@@ -663,6 +670,7 @@ class CalculationTCOCompleteAPIView(APIView):
     
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CalculationTCODeleteAPIView(APIView):
     """DELETE удаление заявки (логическое удаление)"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
@@ -679,6 +687,7 @@ class CalculationTCODeleteAPIView(APIView):
 
 # ==================== ДОМЕН "М-М" (КОРЗИНА) ====================
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CalculationTCOServiceDeleteAPIView(APIView):
     """DELETE удаление услуги из заявки-черновика"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
@@ -706,7 +715,7 @@ class CalculationTCOServiceDeleteAPIView(APIView):
             
             # Удаляем связь
             calculation_service = get_object_or_404(
-                CalculationTCOService,
+                CalculationService,
                 calculation=calculation,
                 service=service
             )
@@ -727,6 +736,7 @@ class CalculationTCOServiceDeleteAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CalculationTCOServiceUpdateAPIView(APIView):
     """PUT изменение количества/порядка/значения в заявке-черновике"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации
@@ -754,7 +764,7 @@ class CalculationTCOServiceUpdateAPIView(APIView):
             
             # Получаем связь
             calculation_service = get_object_or_404(
-                CalculationTCOService,
+                CalculationService,
                 calculation=calculation,
                 service=service
             )
@@ -928,6 +938,7 @@ class UserRegistrationAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserProfileAPIView(APIView):
     """GET профиль пользователя после аутентификации"""
     permission_classes = [IsAuthenticated]  # Требует аутентификации

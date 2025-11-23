@@ -59,7 +59,10 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000', 
     'http://localhost:8000',
     'http://127.0.0.1:3000',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'https://localhost:5173',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
 ]
 
 # CORS настройки (не используем отдельный middleware, т.к. прокси в React настроен)
@@ -137,8 +140,8 @@ SESSION_SAVE_EVERY_REQUEST = True  # Сохранять сессию при ка
 # DRF configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.SessionAuthentication',
+        # Убрали BasicAuthentication, чтобы браузер не показывал модальное окно при 401
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

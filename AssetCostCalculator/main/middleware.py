@@ -25,10 +25,26 @@ class SimpleCorsMiddleware(MiddlewareMixin):
     
     def process_response(self, request, response):
         # Разрешаем запросы с React приложения
-        if request.path.startswith('/api/'):
-            response['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        if request.path.startswith('/api/') or request.path.startswith('/swagger'):
+            # Получаем origin из запроса
+            origin = request.META.get('HTTP_ORIGIN', '')
+            # Разрешенные источники
+            allowed_origins = [
+                'http://localhost:3000',
+                'http://127.0.0.1:3000',
+                'https://localhost:5173',
+                'http://localhost:5173',
+                'http://127.0.0.1:5173',
+            ]
+            
+            # Если origin в списке разрешенных, используем его, иначе используем первый
+            if origin in allowed_origins:
+                response['Access-Control-Allow-Origin'] = origin
+            else:
+                response['Access-Control-Allow-Origin'] = allowed_origins[0]
+            
             response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
-            response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-CSRFToken'
+            response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-CSRFToken, X-Requested-With'
             response['Access-Control-Allow-Credentials'] = 'true'
         
         # Обрабатываем preflight запросы
