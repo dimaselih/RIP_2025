@@ -7,7 +7,11 @@ from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.conf import settings
+from django.urls import reverse
 from .models import ServiceTCO, CalculationTCO, CalculationService, CustomUser
+import requests
+from decimal import Decimal
 
 # DRF imports
 from rest_framework.views import APIView
@@ -476,8 +480,8 @@ class CalculationTCOListAPIView(APIView):
         date_from = request.query_params.get('date_from', '')
         date_to = request.query_params.get('date_to', '')
         
-        # Базовый queryset (исключаем только удаленные)
-        calculations = CalculationTCO.objects.exclude(status='deleted')
+        # Базовый queryset (исключаем черновики и удаленные)
+        calculations = CalculationTCO.objects.exclude(status__in=['deleted', 'draft'])
         
         # Фильтрация по пользователю
         if request.user.is_staff or request.user.is_superuser:
@@ -492,12 +496,12 @@ class CalculationTCOListAPIView(APIView):
             calculations = calculations.filter(status=status_filter)
         
         if date_from:
-            # Фильтруем по дате начала обслуживания
-            calculations = calculations.filter(start_date__gte=date_from)
+            # Фильтр по дате формирования (от)
+            calculations = calculations.filter(formed_at__date__gte=date_from)
         
         if date_to:
-            # Фильтруем по дате окончания обслуживания
-            calculations = calculations.filter(end_date__lte=date_to)
+            # Фильтр по дате формирования (до)
+            calculations = calculations.filter(formed_at__date__lte=date_to)
         
         # Сортируем по дате создания (новые сверху)
         calculations = calculations.order_by('-created_at')
@@ -621,12 +625,36 @@ class CalculationTCOCompleteAPIView(APIView):
         
         # Автозаполнение модератора из request.user (текущий авторизованный пользователь)
         if action == 'complete':
-            # Вычисляем стоимость и срок эксплуатации
-            total_cost, duration_months = self._calculate_cost_and_duration(calculation)
+            # Запускаем асинхронный расчет во внешнем сервисе
+            try:
+                callback_url = request.build_absolute_uri(
+                    reverse('api-calculation-async-result', args=[calculation.id])
+                )
+                payload = self._build_async_payload(calculation, callback_url)
+                headers = {'X-ASYNC-TOKEN': settings.ASYNC_SERVICE_TOKEN}
+                resp = requests.post(
+                    settings.ASYNC_SERVICE_URL,
+                    json=payload,
+                    headers=headers,
+                    timeout=5
+                )
+                if resp.status_code >= 400:
+                    raise Exception(f"Async service responded with {resp.status_code}")
+            except Exception as e:
+                return Response(
+                    {'error': f'Не удалось запланировать расчёт: {str(e)}'},
+                    status=status.HTTP_502_BAD_GATEWAY
+                )
             
-            calculation.status = 'completed'
-            calculation.total_cost = total_cost
-            calculation.duration_months = duration_months
+            calculation.moderator = request.user
+            # Статус оставляем "formed" до прихода результата
+            calculation.completed_at = None
+            calculation.save(update_fields=['moderator', 'completed_at'])
+            
+            return Response(
+                {'message': 'Расчёт запущен, результат поступит позже'},
+                status=status.HTTP_202_ACCEPTED
+            )
         else:  # reject
             calculation.status = 'rejected'
         
@@ -637,36 +665,90 @@ class CalculationTCOCompleteAPIView(APIView):
         response_serializer = CalculationTCOSerializer(calculation)
         return Response(response_serializer.data)
     
-    def _calculate_cost_and_duration(self, calculation):
-        """Вычисляет стоимость и срок эксплуатации заявки"""
-        total_cost = 0
-        duration_months = 0
+    def _build_async_payload(self, calculation, callback_url: str):
+        services = []
+        for item in calculation.calculation_services.all():
+            services.append({
+                'id': item.service.id,
+                'price': float(item.service.price),
+                'price_type': item.service.price_type,
+                'quantity': item.quantity,
+            })
+        return {
+            'calculation_id': calculation.id,
+            'services': services,
+            'callback_url': callback_url,
+            'start_date': calculation.start_date.isoformat() if calculation.start_date else None,
+            'end_date': calculation.end_date.isoformat() if calculation.end_date else None,
+        }
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AsyncCalculationResultAPIView(APIView):
+    """POST приём результата асинхронного сервиса"""
+    permission_classes = [AllowAny]  # Авторизация по токену
+    
+    def post(self, request, pk):
+        token = request.headers.get('X-ASYNC-TOKEN')
+        if token != settings.ASYNC_CALLBACK_TOKEN:
+            return Response({'error': 'Неверный токен'}, status=status.HTTP_403_FORBIDDEN)
         
+        calculation = get_object_or_404(CalculationTCO, pk=pk)
+        
+        result_status = request.data.get('status', 'success')
+        total_cost = request.data.get('total_cost')
+        duration_months = request.data.get('duration_months')
+        # fallback на вычисление по датам
+        if duration_months is None:
+            duration_months = self._duration_from_dates(calculation.start_date, calculation.end_date)
+        
+        if result_status == 'success':
+            calculation.status = 'completed'
+            if total_cost is not None:
+                calculation.total_cost = Decimal(str(total_cost))
+            if duration_months is not None:
+                calculation.duration_months = int(duration_months)
+            # Фолбэк: если стоимость не пришла, пересчитаем локально на основе услуг и duration_months
+            if calculation.total_cost is None:
+                recomputed = self._calculate_cost_with_duration(calculation, calculation.duration_months)
+                if recomputed is not None:
+                    calculation.total_cost = recomputed
+        else:
+            calculation.status = 'rejected'
+        
+        calculation.completed_at = timezone.now()
+        calculation.save()
+        
+        serializer = CalculationTCOSerializer(calculation)
+        return Response(serializer.data)
+
+    def _duration_from_dates(self, start_date, end_date):
+        if not start_date or not end_date:
+            return None
+        months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+        if end_date.day > start_date.day:
+            months += 1
+        if months <= 0:
+            months = 1
+        return months
+
+    def _calculate_cost_with_duration(self, calculation, duration_months: int | None):
+        if duration_months is None or duration_months <= 0:
+            return None
+        total = Decimal('0')
         for item in calculation.calculation_services.all():
             service = item.service
             quantity = item.quantity
-            
-            # Вычисляем стоимость в зависимости от типа цены
             if service.price_type == 'one_time':
-                cost = service.price * quantity
+                total += service.price * quantity
             elif service.price_type == 'monthly':
-                # Предполагаем срок эксплуатации 12 месяцев
-                cost = service.price * quantity * 12
-                duration_months = max(duration_months, 12)
+                total += service.price * quantity * duration_months
             elif service.price_type == 'yearly':
-                # Предполагаем срок эксплуатации 12 месяцев
-                cost = service.price * quantity
-                duration_months = max(duration_months, 12)
+                years = (duration_months + 11) // 12
+                total += service.price * quantity * years
             else:
-                cost = service.price * quantity
-            
-            total_cost += cost
-        
-        # Если не определили срок, устанавливаем 12 месяцев
-        if duration_months == 0:
-            duration_months = 12
-        
-        return total_cost, duration_months
+                total += service.price * quantity
+        return total
     
 
 

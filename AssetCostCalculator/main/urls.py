@@ -56,6 +56,7 @@ urlpatterns = [
     path('api/calculation_tco/<int:pk>/update/', views.CalculationTCOUpdateAPIView.as_view(), name='api-calculation-update'),
     path('api/calculation_tco/<int:pk>/form/', views.CalculationTCOFormAPIView.as_view(), name='api-calculation-form'),
     path('api/calculation_tco/<int:pk>/complete/', views.CalculationTCOCompleteAPIView.as_view(), name='api-calculation-complete'),
+    path('api/calculation_tco/<int:pk>/async-result/', views.AsyncCalculationResultAPIView.as_view(), name='api-calculation-async-result'),
     path('api/calculation_tco/<int:pk>/delete/', views.CalculationTCODeleteAPIView.as_view(), name='api-calculation-delete'),
     
     # Домен "М-М" (корзина) - 2 эндпоинта

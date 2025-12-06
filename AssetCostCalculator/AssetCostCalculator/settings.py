@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -235,6 +236,11 @@ MINIO_MEDIA_FILES_BUCKET = 'cards'
 MINIO_STATIC_FILES_BUCKET = 'cards'
 MINIO_PRIVATE_BUCKETS = []
 MINIO_PUBLIC_BUCKETS = ['cards']
+
+# Настройки асинхронного сервиса расчёта
+ASYNC_SERVICE_URL = os.environ.get('ASYNC_SERVICE_URL', 'http://localhost:8081/process')
+ASYNC_SERVICE_TOKEN = os.environ.get('ASYNC_SERVICE_TOKEN', 'async-secret')
+ASYNC_CALLBACK_TOKEN = os.environ.get('ASYNC_CALLBACK_TOKEN', ASYNC_SERVICE_TOKEN)
 
 # Swagger настройки для режима инкогнито
 SWAGGER_SETTINGS = {

@@ -82,7 +82,7 @@ class CalculationTCOListSerializer(serializers.ModelSerializer):
         model = CalculationTCO
         fields = [
             'id', 'status', 'created_at', 'formed_at', 'completed_at',
-            'creator_username', 'moderator_username', 'total_cost'
+            'creator_username', 'moderator_username', 'total_cost', 'duration_months'
         ]
 
 
