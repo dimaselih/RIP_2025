@@ -75,7 +75,7 @@ class CalculationTCOSerializer(serializers.ModelSerializer):
 
 class CalculationTCOListSerializer(serializers.ModelSerializer):
     """Сериализатор для списка заявок (без деталей)"""
-    creator_username = serializers.CharField(source='creator.username', read_only=True)
+    creator_username = serializers.SerializerMethodField()
     moderator_username = serializers.CharField(source='moderator.username', read_only=True)
     
     class Meta:
@@ -84,6 +84,12 @@ class CalculationTCOListSerializer(serializers.ModelSerializer):
             'id', 'status', 'created_at', 'formed_at', 'completed_at',
             'creator_username', 'moderator_username', 'total_cost', 'duration_months'
         ]
+
+    def get_creator_username(self, obj):
+        # Отображаем email, если username пустой
+        if hasattr(obj.creator, 'email') and obj.creator.email:
+            return obj.creator.email
+        return getattr(obj.creator, 'username', '') or ''
 
 
 class CartIconSerializer(serializers.Serializer):
