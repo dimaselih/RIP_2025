@@ -1,0 +1,44 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+
+# Django / SQLite local DB
+db.sqlite3
+*/db.sqlite3
+
+# Migrations cache
+*/migrations/__pycache__/
+
+# Logs and runtime
+*.log
+*.pid
+*.seed
+*.out
+*.err
+
+# Environment / secrets
+.env
+.env.*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Postgres local data (docker/InitDatabase outputs)
+pgdata/
+InitDatabase/
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Static build artifacts
+staticfiles/
+media/
+
+
