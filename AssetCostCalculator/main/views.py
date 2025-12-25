@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.conf import settings
 from django.urls import reverse
-from .models import ServiceTCO, CalculationTCO, CalculationService, CustomUser
+from .models import ServiceTCO, CalculationTCO, CalculationService, ServiceMedia, CustomUser
 import requests
 from decimal import Decimal
 
@@ -29,7 +29,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from .permissions import IsModerator, IsAdmin, IsModeratorOrAdmin, IsOwnerOrModerator
 from .serializers import (
     ServiceTCOSerializer, ServiceTCOListSerializer, 
-    ServiceImageUploadSerializer,
+    ServiceImageUploadSerializer, ServiceMediaSerializer,
     CalculationTCOSerializer, CalculationTCOListSerializer,
     CartIconSerializer, FormCalculationTCOSerializer,
     CompleteCalculationTCOSerializer, CalculationServiceSerializer,
@@ -423,6 +423,63 @@ class ServiceImageUploadAPIView(APIView):
             print(f"Ошибка удаления старого изображения: {e}")
 
 
+# ==================== ДОМЕН "MEDIA" ====================
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ServiceMediaListAPIView(APIView):
+    """GET список всех media для услуги"""
+    permission_classes = [AllowAny]  # Доступно всем
+    
+    def get(self, request, pk):
+        """GET список всех media для услуги (только is_deleted=False)"""
+        service = get_object_or_404(ServiceTCO, pk=pk, is_deleted=False)
+        media_list = ServiceMedia.objects.filter(service=service, is_deleted=False).order_by('id')
+        serializer = ServiceMediaSerializer(media_list, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ServiceMediaCreateAPIView(APIView):
+    """POST создание записи media"""
+    permission_classes = [IsAuthenticated, IsModeratorOrAdmin]
+    
+    def post(self, request, pk):
+        """POST создание записи media (для модераторов/админов)"""
+        service = get_object_or_404(ServiceTCO, pk=pk, is_deleted=False)
+        
+        serializer = ServiceMediaSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(service=service)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ServiceMediaDeleteAPIView(APIView):
+    """DELETE мягкое удаление media по id"""
+    permission_classes = [IsAuthenticated, IsModeratorOrAdmin]
+    
+    def delete(self, request, media_id):
+        """Мягкое удаление (установка is_deleted=True)"""
+        media = get_object_or_404(ServiceMedia, pk=media_id)
+        
+        # Проверяем права доступа
+        if not (request.user.is_staff or request.user.is_superuser):
+            return Response(
+                {'error': 'Требуются права модератора/админа'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Мягкое удаление
+        media.is_deleted = True
+        media.save()
+        
+        return Response(
+            {'message': 'Медиа-файл успешно удален'},
+            status=status.HTTP_200_OK
+        )
+
+
 # ==================== ДОМЕН "ЗАЯВКА" ====================
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -686,8 +743,33 @@ class CalculationTCOCompleteAPIView(APIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class AsyncCalculationResultAPIView(APIView):
     """POST приём результата асинхронного сервиса"""
-    permission_classes = [AllowAny]  # Авторизация по токену
+    permission_classes = [AllowAny]  # Авторизация по токену X-ASYNC-TOKEN
     
+    @swagger_auto_schema(
+        operation_description="Callback от асинхронного сервиса расчёта. Требует заголовок X-ASYNC-TOKEN.",
+        manual_parameters=[
+            openapi.Parameter(
+                'X-ASYNC-TOKEN',
+                openapi.IN_HEADER,
+                description="Токен авторизации асинхронного сервиса",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'status': openapi.Schema(type=openapi.TYPE_STRING, description="success или error"),
+                'total_cost': openapi.Schema(type=openapi.TYPE_NUMBER, description="Итоговая стоимость"),
+                'duration_months': openapi.Schema(type=openapi.TYPE_INTEGER, description="Длительность в месяцах"),
+            }
+        ),
+        responses={
+            200: openapi.Response('Результат успешно обработан', CalculationTCOSerializer),
+            403: openapi.Response('Неверный токен X-ASYNC-TOKEN'),
+            404: openapi.Response('Заявка не найдена'),
+        }
+    )
     def post(self, request, pk):
         token = request.headers.get('X-ASYNC-TOKEN')
         if token != settings.ASYNC_CALLBACK_TOKEN:

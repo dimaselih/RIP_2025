@@ -1,18 +1,24 @@
 from rest_framework import serializers
-from .models import ServiceTCO, CalculationTCO, CalculationService, User, CustomUser
+from .models import ServiceTCO, CalculationTCO, CalculationService, ServiceMedia, User, CustomUser
 from collections import OrderedDict
 
 
 class ServiceTCOSerializer(serializers.ModelSerializer):
     """Сериализатор для услуг TCO"""
+    media = serializers.SerializerMethodField()
     
     class Meta:
         model = ServiceTCO
         fields = [
             'id', 'name', 'description', 'fullDescription', 
-            'price', 'price_type', 'image_url', 'is_deleted'
+            'price', 'price_type', 'image_url', 'is_deleted', 'media'
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'media']
+    
+    def get_media(self, obj):
+        """Возвращает только не удаленные media, отсортированные по id"""
+        media_list = obj.media_files.filter(is_deleted=False).order_by('id')
+        return ServiceMediaSerializer(media_list, many=True).data
     
     def get_fields(self):
         """Метод для возможности передачи только части полей в запросах"""
@@ -126,6 +132,16 @@ class CompleteCalculationTCOSerializer(serializers.Serializer):
 class ServiceImageUploadSerializer(serializers.Serializer):
     """Сериализатор для загрузки изображения услуги"""
     image = serializers.ImageField()
+
+
+class ServiceMediaSerializer(serializers.ModelSerializer):
+    """Сериализатор для медиа-файлов услуг"""
+    file_url = serializers.CharField(max_length=500)  # Используем CharField вместо URLField для более гибкой валидации
+    
+    class Meta:
+        model = ServiceMedia
+        fields = ['id', 'service', 'file_url', 'file_type', 'is_deleted', 'created_at']
+        read_only_fields = ['id', 'service', 'created_at']
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):

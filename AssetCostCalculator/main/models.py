@@ -234,3 +234,48 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     
     def __str__(self):
         return self.email
+
+
+class ServiceMedia(models.Model):
+    """Таблица медиа-файлов для услуг (фото и видео)"""
+    
+    FILE_TYPE_CHOICES = [
+        ('photo', 'Фото'),
+        ('video', 'Видео'),
+    ]
+    
+    service = models.ForeignKey(
+        ServiceTCO,
+        on_delete=models.CASCADE,
+        related_name='media_files',
+        verbose_name="Услуга",
+        help_text="Услуга, к которой относится медиа-файл"
+    )
+    file_url = models.URLField(
+        max_length=500,
+        verbose_name="URL файла",
+        help_text="Ссылка на файл в MinIO"
+    )
+    file_type = models.CharField(
+        max_length=10,
+        choices=FILE_TYPE_CHOICES,
+        verbose_name="Тип файла",
+        help_text="Тип медиа-файла: фото или видео"
+    )
+    is_deleted = models.BooleanField(
+        default=False,
+        verbose_name="Статус удален",
+        help_text="Помечен ли медиа-файл как удаленный"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Дата создания"
+    )
+    
+    class Meta:
+        verbose_name = "Медиа-файл услуги"
+        verbose_name_plural = "Медиа-файлы услуг"
+        ordering = ['id']
+    
+    def __str__(self):
+        return f"{self.service.name} - {self.get_file_type_display()} ({self.id})"

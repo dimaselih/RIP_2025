@@ -49,7 +49,12 @@ urlpatterns = [
     path('api/service_tco/<int:pk>/add-to-cart/', views.ServiceAddToCartAPIView.as_view(), name='api-servicetco-add-to-cart'),
     path('api/service_tco/<int:pk>/image/', views.ServiceImageUploadAPIView.as_view(), name='api-servicetco-image'),
     
-    # Домен "Заявка" (7 эндпоинтов)
+    # Домен "Media" (3 эндпоинта)
+    path('api/service_tco/<int:pk>/media/', views.ServiceMediaListAPIView.as_view(), name='api-servicetco-media-list'),
+    path('api/service_tco/<int:pk>/media/create/', views.ServiceMediaCreateAPIView.as_view(), name='api-servicetco-media-create'),
+    path('api/service_tco/media/<int:media_id>/delete/', views.ServiceMediaDeleteAPIView.as_view(), name='api-servicetco-media-delete'),
+    
+    # Домен "Заявка" (8 эндпоинтов)
     path('api/cart_tco/', views.CartIconAPIView.as_view(), name='api-cart-icon'),
     path('api/calculation_tco/', views.CalculationTCOListAPIView.as_view(), name='api-calculation-list'),
     path('api/calculation_tco/<int:pk>/', views.CalculationTCODetailAPIView.as_view(), name='api-calculation-detail'),
