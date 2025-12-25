@@ -4,6 +4,5 @@
 
 ### Ссылки
 - GitHubPages: https://dimaselih.github.io/RIP_2025_React/
-- Бэкенд (основной веб-сервис): https://github.com/dimaselih/RIP_2025
 - Бэкенд (асинхронный сервис): https://github.com/dimaselih/RIP_2025_Calculation
 - Фронтенд: https://github.com/dimaselih/RIP_2025_React
